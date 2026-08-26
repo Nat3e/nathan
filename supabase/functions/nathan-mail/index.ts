@@ -14,10 +14,20 @@
 //  POST { action: "probe" }              → { ok, greeting }   (no mail secrets needed)
 //  POST { action: "inbox", limit? }      → { messages: [{uid, seen, from, subject, date, snippet}] }
 //  POST { action: "read", uid }          → { message: {..., body} }
+//  POST { action: "bank_sync" }          → { ok, scanned, fresh, logged, balance? }
+//    Scans recent mail for bank alert emails (EN/FR, any Canadian bank),
+//    extracts transactions with Haiku, logs them to the money tracker
+//    (deduplicated by mail UID), and remembers the latest balance in the
+//    memory file /finances/bank.md. Run hourly by the nathan-bank-sync cron.
 // ─────────────────────────────────────────────────────────────────────────────
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORS, json, safeEqual } from "../_shared/http.ts";
 import { listInbox, mailCreds, probeImap, readMail } from "../_shared/imap.ts";
+
+/* does this email smell like a bank alert? sender or subject, English or French */
+const BANK_FROM = /(desjardins|rbc|royalbank|banquenationale|bnc\b|nbc\b|scotiabank|scotia|bmo|\btd\b|tdcanadatrust|cibc|tangerine|interac|wealthsimple|koho|neo-?financial|eqbank|laurentienne|laurentian)/i;
+const BANK_SUBJ = /(alert|transaction|deposit|withdraw|balance|payment|purchase|transfer|e-?transfer|debit|credit|virement|retrait|d[ée]p[ôo]t|solde|op[ée]ration|paiement|achat|re[çc]u|sent you|vous a envoy[ée])/i;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -51,6 +61,115 @@ Deno.serve(async (req: Request) => {
     }
 
     switch (body.action) {
+      case "bank_sync": {
+        const db = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+        if (!apiKey) return json({ error: "setup", detail: "ANTHROPIC_API_KEY is not set." }, 503);
+
+        /* 1. recent mail → the ones that look like bank alerts */
+        const msgs = await listInbox(user, pass, 25);
+        const cands = msgs.filter((m) => BANK_FROM.test(m.from) || BANK_SUBJ.test(m.subject));
+        if (!cands.length) return json({ ok: true, scanned: 0, fresh: 0, logged: 0 });
+
+        /* 2. skip everything already processed (dedup by mail UID) */
+        const { data: unseen, error: seenErr } = await db.rpc("nathan_bank_unseen", {
+          p_uids: cands.map((m) => m.uid),
+        });
+        if (seenErr) return json({ error: "db", detail: String(seenErr) }, 500);
+        const freshUids = new Set((unseen ?? []) as number[]);
+        const fresh = cands.filter((m) => freshUids.has(m.uid)).slice(0, 8);
+        if (!fresh.length) return json({ ok: true, scanned: cands.length, fresh: 0, logged: 0 });
+
+        /* 3. read the fresh ones in full and have Haiku pull out the numbers */
+        const bodies: string[] = [];
+        for (const m of fresh) {
+          try {
+            const full = await readMail(user, pass, m.uid);
+            bodies.push(`[uid ${m.uid}] ${m.date}\nFrom: ${m.from}\nSubject: ${m.subject}\n${full.body.slice(0, 1500)}`);
+          } catch {
+            bodies.push(`[uid ${m.uid}] ${m.date}\nFrom: ${m.from}\nSubject: ${m.subject}\n${m.snippet}`);
+          }
+        }
+        const extractRes = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: Deno.env.get("NATHAN_MODEL_FAST") ?? "claude-haiku-4-5-20251001",
+            max_tokens: 1500,
+            system:
+              "You extract banking data from alert emails (English or French). " +
+              "Return ONLY a JSON array, no prose. One object per email: " +
+              '{"uid": <number from [uid N]>, "kind": "income"|"expense"|null, ' +
+              '"title": short label like "Interac from Marc" or "Tim Hortons", ' +
+              '"amount": number in CAD or null, "when": ISO 8601 date from the email, ' +
+              '"balance": account balance in CAD if the email states one, else null}. ' +
+              "kind is income for money received/deposited, expense for money spent/withdrawn, " +
+              "null if the email is not an actual transaction (promo, statement notice, login alert).",
+            messages: [{ role: "user", content: bodies.join("\n\n=====\n\n") }],
+          }),
+        });
+        if (!extractRes.ok) {
+          const detail = await extractRes.text();
+          return json({ error: "anthropic", detail: detail.slice(0, 400) }, 502);
+        }
+        const extractData = await extractRes.json();
+        const rawText = (extractData.content ?? [])
+          .filter((b: { type: string }) => b.type === "text")
+          .map((b: { text: string }) => b.text).join("");
+        let entries: { uid?: number; kind?: string | null; title?: string; amount?: number | null; when?: string; balance?: number | null }[] = [];
+        try {
+          const m = rawText.match(/\[[\s\S]*\]/);
+          entries = m ? JSON.parse(m[0]) : [];
+        } catch { entries = []; }
+
+        /* 4. log real transactions; remember the newest stated balance */
+        let logged = 0;
+        let balance: number | null = null;
+        let balanceWhen = "";
+        for (const e of entries) {
+          if ((e.kind === "income" || e.kind === "expense") && Number(e.amount) > 0) {
+            try {
+              const { error } = await db.rpc("nathan_money_add", {
+                p_kind: e.kind,
+                p_title: (e.title || "Bank transaction").slice(0, 80),
+                p_amount: Number(e.amount),
+                p_category: "bank",
+                p_note: "auto from bank alert email",
+                p_when: e.when ?? null,
+                p_status: null,
+              });
+              if (!error) logged++;
+            } catch { /* skip a bad row, keep the rest */ }
+          }
+          if (e.balance != null && Number(e.balance) >= 0) { balance = Number(e.balance); balanceWhen = e.when ?? ""; }
+        }
+        if (balance != null) {
+          try {
+            await db.rpc("nathan_remember", {
+              p_path: "/finances/bank.md",
+              p_name: "bank-balance",
+              p_category: "preferences",
+              p_description: "Latest bank balance, from bank alert emails (auto-updated)",
+              p_content: `# Bank\nBalance: $${balance.toFixed(2)} CAD` +
+                (balanceWhen ? ` as of ${balanceWhen}` : "") +
+                `\n(from bank alert emails — updated automatically by the hourly sync)`,
+            });
+          } catch { /* balance memory is nice-to-have */ }
+        }
+
+        /* 5. mark every fresh candidate processed, transaction or not */
+        await db.rpc("nathan_bank_mark", { p_uids: fresh.map((m) => m.uid) });
+
+        return json({ ok: true, scanned: cands.length, fresh: fresh.length, logged, ...(balance != null ? { balance } : {}) });
+      }
+
       case "inbox": {
         const messages = await listInbox(user, pass, Math.min(Math.max(body.limit ?? 10, 1), 25));
         return json({ messages });
