@@ -254,6 +254,7 @@ Deno.serve(async (req: Request) => {
     session?: string;
     message?: string;
     speed?: string;
+    mode?: string;
     image?: { media_type: string; data: string };
   };
   try {
@@ -416,10 +417,35 @@ Deno.serve(async (req: Request) => {
     ...(currentContent ? [{ role: "user", content: currentContent }] : []),
   ];
 
-  /* two gears: fast = Haiku (quick + cheap), smart = Opus (default) */
+  /* modes: how he wants Nathan thinking right now.
+     normal/free → Sonnet 5 (quick, sharp) · work/study → Opus 5 (deepest).
+     The fast gear (Haiku) still wins when the app explicitly asks for speed. */
+  const MODE_MODEL: Record<string, string> = {
+    normal: "claude-sonnet-5",
+    free:   "claude-sonnet-5",
+    study:  "claude-opus-5",
+    work:   "claude-opus-5",
+  };
+  const mode = String(body.mode ?? "").toLowerCase();
   const model = body.speed === "fast"
     ? (Deno.env.get("NATHAN_MODEL_FAST") ?? "claude-haiku-4-5-20251001")
-    : (Deno.env.get("NATHAN_MODEL") ?? "claude-opus-5");
+    : (Deno.env.get("NATHAN_MODEL") ?? MODE_MODEL[mode] ?? "claude-opus-5");
+
+  const MODE_STYLE: Record<string, string> = {
+    work:
+      "WORK MODE is on: he is working. Be maximally rigorous — double-check every number " +
+      "and date, think a step ahead, flag risks and conflicts he hasn't seen. Depth over " +
+      "brevity when it earns its place.",
+    study:
+      "STUDY MODE is on: he is studying. Give the straight, correct answer FIRST, then one " +
+      "compact explanation that makes it stick. No hedging, no filler. If he has something " +
+      "wrong, correct it directly.",
+    free:
+      "HANDS-FREE MODE is on: he is speaking aloud and hears your replies read aloud. Keep " +
+      "replies short, natural, and easy to listen to — a few conversational sentences unless " +
+      "he asks for depth.",
+  };
+  if (MODE_STYLE[mode]) system.push({ type: "text", text: MODE_STYLE[mode] });
 
   /* Opus-class models can decline a request outright (stop_reason "refusal");
      server-side fallbacks reroute those to a sibling model instead of failing */
@@ -437,8 +463,9 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model,
-        /* adaptive thinking shares this cap — give Opus room to think AND answer */
-        max_tokens: 4000,
+        /* adaptive thinking shares this cap — work mode thinks hardest, needs most room */
+        max_tokens: mode === "work" ? 8000 : 4000,
+        ...(mode === "work" ? { output_config: { effort: "xhigh" } } : {}),
         ...(opusClass ? { fallbacks: "default" } : {}),
         system, tools: TOOLS, messages: msgs, stream: true,
       }),

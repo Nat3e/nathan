@@ -252,11 +252,40 @@ main{
   background:radial-gradient(ellipse 120% 90% at 50% 0%,rgba(255,255,255,.028),transparent 60%),var(--bg-2);
 }
 
-.orbwrap{
-  position:relative;flex:1;min-height:0;width:100%;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
-  transition:.75s var(--ease);
+/* ── the Brain: memory files as living dots, data visibly traveling ── */
+.brainviz{position:absolute;inset:0;z-index:1;pointer-events:none;transition:opacity .6s var(--ease)}
+.app.chatting .brainviz{opacity:.4}
+.brainviz canvas{position:absolute;inset:0;width:100%;height:100%}
+.bdot{
+  position:absolute;pointer-events:auto;transform:translate(-50%,-50%);
+  width:18px;height:18px;display:grid;place-items:center;cursor:default;
 }
+.bdot i{
+  width:7px;height:7px;border-radius:50%;background:var(--cy);
+  box-shadow:0 0 10px rgba(60,224,240,.8);opacity:.5;
+  transition:transform .25s var(--ease),opacity .25s;
+  animation:bfloat 6s ease-in-out infinite;
+}
+.bdot.sys i{background:var(--vi);box-shadow:0 0 10px rgba(167,139,250,.8)}
+.bdot u{
+  position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  white-space:nowrap;text-decoration:none;font-family:var(--mono);font-size:9.5px;
+  color:var(--cy);opacity:0;transition:.25s;pointer-events:none;
+  background:rgba(4,4,6,.78);padding:2px 8px;border-radius:6px;
+  border:1px solid rgba(60,224,240,.25);backdrop-filter:blur(8px);
+}
+.bdot.sys u{color:var(--vi);border-color:rgba(167,139,250,.3)}
+.bdot:hover i{opacity:1;transform:scale(1.7)}
+.bdot:hover u{opacity:1}
+.bdot.hot i{opacity:1;transform:scale(1.9);box-shadow:0 0 20px rgba(60,224,240,1)}
+@keyframes bfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+
+.orbwrap{
+  position:relative;flex:1;min-height:0;width:100%;z-index:2;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  transition:.75s var(--ease);pointer-events:none;
+}
+.orbwrap .caption,.orbwrap canvas{pointer-events:auto}
 .orbstack{position:relative;display:grid;place-items:center;transition:.75s var(--ease)}
 #orb{display:block;width:400px;height:400px;transition:.75s var(--ease)}
 .bloom{
@@ -350,6 +379,22 @@ main{
 .cbtn:hover{color:var(--txt);background:rgba(255,255,255,.07)}
 .cbtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .cbtn.mic.on{background:linear-gradient(135deg,var(--cy),var(--vi));color:#040406;box-shadow:0 0 22px rgba(60,224,240,.45)}
+/* mode circles — how Nathan thinks right now; the active one glows in its color */
+.mbtn{
+  width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;
+  font-size:15px;line-height:1;border:1px solid var(--line);background:rgba(255,255,255,.03);
+  filter:grayscale(1) brightness(.75);transition:.25s var(--ease);
+}
+.mbtn:hover{filter:grayscale(.3) brightness(1);border-color:var(--line-hi);transform:translateY(-1px)}
+.mbtn.on{filter:none}
+.mbtn.on[data-mode="work"]{border-color:rgba(251,191,36,.55);background:rgba(251,191,36,.1);box-shadow:0 0 18px rgba(251,191,36,.3)}
+.mbtn.on[data-mode="study"]{border-color:rgba(167,139,250,.55);background:rgba(167,139,250,.12);box-shadow:0 0 18px rgba(167,139,250,.35)}
+.mbtn.on[data-mode="normal"]{border-color:rgba(60,224,240,.55);background:rgba(60,224,240,.1);box-shadow:0 0 18px rgba(60,224,240,.3)}
+.mbtn.on[data-mode="free"]{
+  border-color:rgba(52,211,153,.55);background:rgba(52,211,153,.12);
+  animation:freepulse 2.2s ease-in-out infinite;
+}
+@keyframes freepulse{0%,100%{box-shadow:0 0 10px rgba(52,211,153,.3)}50%{box-shadow:0 0 26px rgba(52,211,153,.6)}}
 .cbtn.send{background:linear-gradient(135deg,var(--cy),var(--vi));color:#040406;opacity:.35;pointer-events:none}
 .cbtn.send.ready{opacity:1;pointer-events:auto;box-shadow:0 0 20px rgba(60,224,240,.35)}
 .chips{display:flex;gap:7px;margin:0 0 12px;flex-wrap:wrap;justify-content:center}
@@ -941,6 +986,9 @@ input[type=range].slider::-moz-range-thumb{
     <!-- ───────── CENTER : ORB + CHAT ───────── -->
     <section class="stage" id="stage">
 
+      <!-- the Brain: every memory file is a dot; watch data travel while he works -->
+      <div class="brainviz" id="brainViz"><canvas id="brainCanvas"></canvas></div>
+
       <div class="stage-brand">
         <div class="brand">
           <div class="mark"></div>
@@ -979,7 +1027,11 @@ input[type=range].slider::-moz-range-thumb{
         <div class="cbox">
           <button class="cbtn" id="attach" title="Add a photo"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5a2 2 0 0 0-3 0L6 20"/></svg></button>
           <input type="file" id="attachFile" accept="image/*" style="display:none">
-          <input id="input" type="text" placeholder="Message Nathan…" autocomplete="off" spellcheck="false">
+          <input id="input" type="text" placeholder="Ask · &quot;remind me…&quot; · &quot;good morning&quot;" autocomplete="off" spellcheck="false">
+          <button class="mbtn" data-mode="free"   title="Free hand — I keep listening until you turn this off">🎙</button>
+          <button class="mbtn" data-mode="work"   title="Work — deepest thinking (Opus 5, full effort)">💼</button>
+          <button class="mbtn" data-mode="study"  title="Study — straight, correct answers (Opus 5)">📚</button>
+          <button class="mbtn" data-mode="normal" title="Normal — everyday chat (Sonnet 5)">✨</button>
           <button class="cbtn mic" id="mic" title="Voice"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
           <button class="cbtn send" id="send" title="Send"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
         </div>
@@ -1516,7 +1568,8 @@ const voiceEndpoint  = () => (cfg.endpoint || DEFAULT_ENDPOINT).replace(/\/[^/]+
 const CFG_KEY = 'nathan.cfg.v2';
 
 let cfg = {
-  speed: 'smart',                         // 'fast' = Haiku (quick, cheap), 'smart' = Sonnet (deep)
+  speed: 'smart',                         // 'fast' = Haiku (quick, cheap), 'smart' = the mode's model
+  mode: 'normal',                         // normal · work · study · free (hands-free)
   endpoint: DEFAULT_ENDPOINT,
   key: '',
   lang: 'en-CA', speak: true, auto: true,
@@ -1727,6 +1780,8 @@ async function loadMemory(force){
     memoryCache = (files || []).map(f => '### ' + f.path + '\n' + f.content).join('\n\n');
     const row = document.getElementById('sysMem');
     if (row) row.querySelector('b').textContent = (files || []).length + ' files';
+    memoryFiles = files || [];
+    brainBuild();
   } catch (e) {
     memoryCache = '';
     const row = document.getElementById('sysMem');
@@ -1734,6 +1789,98 @@ async function loadMemory(force){
   }
   return memoryCache;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   THE BRAIN — every memory file is a living dot around the orb.
+   Hover a dot to see which file it is. When Nathan works, watch
+   the data travel between his core and his memory.
+   ══════════════════════════════════════════════════════════════ */
+let memoryFiles = [];
+const brainEl = document.getElementById('brainViz');
+const brainCv = document.getElementById('brainCanvas');
+let brainNodes = [], brainPulses = [], brainBusy = false;
+
+const brainHash = s => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
+
+function brainBuild(){
+  if (!brainEl) return;
+  const nodes = [
+    {key: '@board', label: 'live board', sys: true},
+    {key: '@money', label: 'finances',   sys: true},
+    {key: '@inbox', label: 'inbox',      sys: true},
+    ...memoryFiles.map(f => ({key: f.path, label: f.path.replace(/^\//, ''), sys: false})),
+  ];
+  brainEl.querySelectorAll('.bdot').forEach(d => d.remove());
+  brainNodes = nodes.map((nd, i) => {
+    const h = brainHash(nd.key);
+    const a = i * 2.399963 + (h % 628) / 100;          // golden-angle spread + jitter
+    const s = 0.62 + ((h >> 5) % 1000) / 1000 * 0.38;  // how far out on the ring
+    const el = document.createElement('div');
+    el.className = 'bdot' + (nd.sys ? ' sys' : '');
+    el.innerHTML = '<i style="animation-delay:-' + ((h % 60) / 10) + 's"></i><u>' + escapeHtml(nd.label) + '</u>';
+    brainEl.appendChild(el);
+    return {key: nd.key, a, s, el, x: 0, y: 0};
+  });
+  brainLayout();
+}
+function brainLayout(){
+  if (!brainEl) return;
+  const w = brainEl.clientWidth, h = brainEl.clientHeight;
+  for (const n of brainNodes){
+    n.x = w / 2 + Math.cos(n.a) * w * 0.40 * n.s;
+    n.y = h / 2 + Math.sin(n.a) * h * 0.35 * n.s;
+    n.el.style.left = n.x + 'px';
+    n.el.style.top = n.y + 'px';
+  }
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  brainCv.width = Math.max(1, w * dpr);
+  brainCv.height = Math.max(1, h * dpr);
+  brainCv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', () => { if (brainNodes.length) brainLayout(); });
+
+/* a spark of data travels core ↔ dot; strong = a real write, not ambience */
+function brainPulse(key, strong){
+  const n = brainNodes.find(x => x.key === key);
+  if (!n) return;
+  brainPulses.push({n, t: 0, strong: !!strong, out: strong ? true : Math.random() < 0.5});
+  n.el.classList.add('hot');
+  setTimeout(() => n.el.classList.remove('hot'), 1300);
+}
+function brainWorking(on){ brainBusy = on; }
+
+(function brainLoop(){
+  requestAnimationFrame(brainLoop);
+  if (!brainEl || !brainCv || !brainNodes.length) return;
+  const w = brainEl.clientWidth, h = brainEl.clientHeight;
+  const cx = w / 2, cy = h / 2;
+  const ctx = brainCv.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  const t = performance.now() / 1000;
+  for (const n of brainNodes){
+    const a = 0.03 + 0.028 * (0.5 + 0.5 * Math.sin(t * 0.7 + n.a * 3));
+    ctx.strokeStyle = 'rgba(60,224,240,' + (brainBusy ? a * 2.2 : a).toFixed(3) + ')';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(n.x, n.y); ctx.stroke();
+  }
+  /* while he's thinking, ambient sparks wander his whole memory */
+  if (brainBusy && Math.random() < 0.07 && brainPulses.length < 6){
+    const n = brainNodes[(Math.random() * brainNodes.length) | 0];
+    brainPulses.push({n, t: 0, strong: false, out: Math.random() < 0.5});
+  }
+  for (const p of brainPulses){
+    p.t += p.strong ? 0.014 : 0.02;
+    const e = p.t < 0.5 ? 2 * p.t * p.t : 1 - Math.pow(-2 * p.t + 2, 2) / 2;
+    const k = p.out ? e : 1 - e;
+    const x = cx + (p.n.x - cx) * k, y = cy + (p.n.y - cy) * k;
+    ctx.shadowBlur = p.strong ? 14 : 8;
+    ctx.shadowColor = 'rgba(60,224,240,.9)';
+    ctx.fillStyle = 'rgba(170,246,255,.95)';
+    ctx.beginPath(); ctx.arc(x, y, p.strong ? 3.4 : 2.2, 0, 7); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  brainPulses = brainPulses.filter(p => p.t < 1);
+})();
 
 const pillEl = document.querySelector('.pill');
 function setConnBadge(mode, label){
@@ -1783,7 +1930,7 @@ async function askBrain(text, onToken, img){
     method: 'POST',
     headers: {'content-type':'application/json', 'x-nathan-key': cfg.key},
     body: JSON.stringify({
-      message: text, session: 'web', speed: cfg.speed,
+      message: text, session: 'web', speed: cfg.speed, mode: cfg.mode || 'normal',
       ...(img ? {image: {media_type: img.media_type, data: img.data}} : {}),
     }),
   });
@@ -1833,6 +1980,7 @@ async function send(text){
 
   busy = true;
   setState('thinking');
+  brainWorking(true);
   const wait = bubble('nat', '<div class="typing"><i></i><i></i><i></i></div>');
   const bub = wait.querySelector('.bub');
 
@@ -1864,16 +2012,20 @@ async function send(text){
       if (data.saved && data.saved.length){
         bub.insertAdjacentHTML('beforeend',
           '<div class="saved-chip">✓ remembered ' + escapeHtml(data.saved.join(', ')) + '</div>');
+        data.saved.forEach(p => brainPulse(p, true));
+        loadMemory(true);                       // new/updated file → refresh the Brain's dots
       }
       if (data.board){
         bub.insertAdjacentHTML('beforeend', '<div class="saved-chip">✓ board updated</div>');
+        brainPulse('@board', true);
         fetchItems();
       }
       if (data.money){
         bub.insertAdjacentHTML('beforeend', '<div class="saved-chip">✓ finances updated</div>');
+        brainPulse('@money', true);
         fetchMoney();
       }
-      setConnBadge('', cfg.speed === 'fast' ? 'Online · Fast' : 'Online');
+      setConnBadge('', onlineLabel());
       speak(data.reply);
     }
     setState('speaking');
@@ -1888,6 +2040,7 @@ async function send(text){
     setState('ready');
   } finally {
     busy = false;
+    brainWorking(false);
     threadEl.scrollTop = threadEl.scrollHeight;
   }
 }
@@ -1932,9 +2085,13 @@ function buildRecogniser(){
 
   r.onerror = e => {
     micOn = false; micBtn.classList.remove('on');
-    if (e.error === 'no-speech'){ setState('ready', 'Didn\'t catch that — try again.'); return; }
+    if (e.error === 'no-speech'){
+      setState('ready', cfg.mode === 'free' ? 'Still listening…' : 'Didn\'t catch that — try again.');
+      return;   // free hand: onend fires next and reopens the mic
+    }
     if (e.error === 'aborted'){ setState('ready'); return; }
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      micCancelled = true;                      // stops free hand from re-asking in a loop
       const overFile = location.protocol === 'file:';
       setState('ready', overFile
         ? 'Microphone is blocked on local files — see settings.'
@@ -1950,8 +2107,8 @@ function buildRecogniser(){
     /* only auto-send what was actually dictated this session — never a typed
        draft sitting in the input, and never after the mic was clicked to cancel */
     const said = heard.trim();
-    if (said && cfg.auto && !micCancelled){ setState('ready'); send(said); }
-    else if (!said) setState('ready');
+    if (said && (cfg.auto || cfg.mode === 'free') && !micCancelled){ setState('ready'); send(said); }
+    else if (!said){ setState('ready'); if (!micCancelled) freehandResume(); }
     else setState('ready', said);
   };
 
@@ -1983,6 +2140,39 @@ micBtn.addEventListener('click', () => {
   try { rec.start(); }
   catch (e) { setState('ready', 'Could not start the microphone.'); }
 });
+
+/* ══════════════════════════════════════════════════════════════
+   MODES  —  how Nathan thinks right now (circles beside the input)
+   ══════════════════════════════════════════════════════════════ */
+const MODE_NAME = {free: 'Free hand', work: 'Work', study: 'Study', normal: 'Normal'};
+function onlineLabel(){
+  const m = cfg.mode || 'normal';
+  return 'Online' + (m !== 'normal' ? ' · ' + MODE_NAME[m] : (cfg.speed === 'fast' ? ' · Fast' : ''));
+}
+function paintMode(){
+  document.querySelectorAll('.mbtn').forEach(b =>
+    b.classList.toggle('on', b.dataset.mode === (cfg.mode || 'normal')));
+}
+function setMode(m){
+  cfg.mode = m; saveCfg(); paintMode();
+  if (connected()) setConnBadge('', onlineLabel());
+  if (m === 'free'){
+    if (SR && !micOn && !busy) micBtn.click();      // start listening right away
+  } else if (micOn){
+    micCancelled = true; try { rec && rec.abort(); } catch (e) {}
+  }
+}
+document.querySelectorAll('.mbtn').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+paintMode();
+
+/* free hand: the mic reopens by itself once Nathan is done talking */
+function freehandResume(){
+  if ((cfg.mode || 'normal') !== 'free' || micOn || busy) return;
+  if (!lockEl.classList.contains('off')) return;
+  setTimeout(() => {
+    if (cfg.mode === 'free' && !micOn && !busy && SR) micBtn.click();
+  }, 400);
+}
 
 /* ══════════════════════════════════════════════════════════════
    VOICE OUT
@@ -2049,11 +2239,11 @@ async function speakEleven(text){
   elevenState = 'on';
   const url = URL.createObjectURL(await res.blob());
   nathanAudio.src = url;
-  nathanAudio.onended = () => URL.revokeObjectURL(url);
+  nathanAudio.onended = () => { URL.revokeObjectURL(url); freehandResume(); };
   await nathanAudio.play();
 }
 function speakLocal(text){
-  if (!('speechSynthesis' in window)) return;
+  if (!('speechSynthesis' in window)){ freehandResume(); return; }
   stopSpeaking();
   const u = new SpeechSynthesisUtterance(text);
   const v = pickVoice();
@@ -2061,10 +2251,12 @@ function speakLocal(text){
   else u.lang = cfg.lang || 'en-CA';
   u.rate = cfg.rate || 1.02;
   u.pitch = cfg.pitch || 1.0;
+  u.onend = freehandResume;
+  u.onerror = freehandResume;
   speechSynthesis.speak(u);
 }
 function speak(text){
-  if (!cfg.speak || !text) return;
+  if (!cfg.speak || !text){ freehandResume(); return; }   // silent reply still hands the mic back
   const clean = String(text).replace(/[*`#_]/g, '');
   if (cfg.key && elevenState !== 'off') speakEleven(clean).catch(() => speakLocal(clean));
   else speakLocal(clean);
@@ -3005,7 +3197,7 @@ tick(); setInterval(tick, 10000);
 
 function bootBadge(){
   if (!connected()){ setConnBadge('demo', 'Demo mode'); return; }
-  setConnBadge('', cfg.speed === 'fast' ? 'Online · Fast' : 'Online');
+  setConnBadge('', onlineLabel());
 }
 bootBadge();
 setState('ready');
