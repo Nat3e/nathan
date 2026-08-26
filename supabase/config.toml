@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.nathan-mail]
 verify_jwt = false
+
+[functions.nathan-voice]
+verify_jwt = false

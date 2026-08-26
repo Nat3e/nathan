@@ -23,6 +23,7 @@ Add each of these as a Key / Value pair and press Save:
 |---|---|
 | `ANTHROPIC_API_KEY` | Create it at <https://platform.claude.com/settings/keys> → **Create Key**. Copy it immediately, it's shown once. Add credits first at <https://platform.claude.com/settings/billing> — API usage is billed separately from a Claude subscription. |
 | `NATHAN_ACCESS_KEY` | Any long random string — this is your own password for the endpoint. Not an Anthropic thing; you invent it. |
+| `ELEVENLABS_API_KEY` *(optional)* | Gives Nathan his real voice (works on phones). Create it at elevenlabs.io → profile icon → API Keys. Without it the app falls back to the browser's built-in voice. |
 | `NATHAN_MODEL` | *(optional)* `claude-sonnet-5` is the default. `claude-opus-5` is smarter and pricier. `claude-haiku-4-5-20251001` is much faster and cheaper — a good daily driver; switch back when you want deep thinking. |
 
 **Never put these in the HTML file or paste them into a chat.** The Edge Function reads them

@@ -1172,8 +1172,9 @@ input[type=range].slider::-moz-range-thumb{
         <select id="fVoice"></select>
         <button class="btn" id="btnPreview" type="button">Listen</button>
       </div>
-      <div class="help">Voices come from this browser. <b>Microsoft Edge</b> has the most natural
-      free ones — open this same page in Edge and pick anything with “Natural” in the name.</div>
+      <div class="help">When Nathan's cloud voice (ElevenLabs) is connected, he always speaks with
+      it — on your phone too — and this list is only the backup. Without it, voices come from this
+      browser; <b>Microsoft Edge</b> has the most natural free ones.</div>
     </div>
 
     <div class="field">
@@ -1511,6 +1512,7 @@ const DEFAULT_ENDPOINT = SUPA + '/nathan-brain';
 /* memory lives next to the brain: same functions host, sibling function —
    derived from the configured endpoint so both move together */
 const memoryEndpoint = () => (cfg.endpoint || DEFAULT_ENDPOINT).replace(/\/[^/]+\/?$/, '/nathan-memory');
+const voiceEndpoint  = () => (cfg.endpoint || DEFAULT_ENDPOINT).replace(/\/[^/]+\/?$/, '/nathan-voice');
 const CFG_KEY = 'nathan.cfg.v2';
 
 let cfg = {
@@ -2011,17 +2013,61 @@ function pickVoice(){
   }
   return vs[0] || null;                     // otherwise: the most natural one available
 }
-function stopSpeaking(){ try { speechSynthesis.cancel(); } catch (e) {} }
-function speak(text){
-  if (!cfg.speak || !text || !('speechSynthesis' in window)) return;
+/* ── Nathan's real voice: ElevenLabs through nathan-voice, played through ONE
+      shared <audio> element. That element is "unlocked" by the first tap on
+      the page, which is exactly what phones require before a page may play
+      sound — this is why Nathan can finally speak on mobile. The browser's
+      built-in voice stays as the fallback when the cloud voice isn't set up
+      or can't be reached. ── */
+const nathanAudio = new Audio();
+nathanAudio.preload = 'auto';
+addEventListener('pointerdown', () => {
+  try {
+    /* a 0-sample wav: playing it inside the tap unlocks the element for later */
+    nathanAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+    nathanAudio.play().catch(() => {});
+  } catch (e) {}
+}, { once: true });
+
+let elevenState = 'unknown';                 // 'unknown' | 'on' | 'off' (not configured)
+
+function stopSpeaking(){
+  try { speechSynthesis.cancel(); } catch (e) {}
+  try { nathanAudio.pause(); nathanAudio.currentTime = 0; } catch (e) {}
+}
+async function speakEleven(text){
   stopSpeaking();
-  const u = new SpeechSynthesisUtterance(String(text).replace(/[*`#_]/g, ''));
+  const res = await fetch(voiceEndpoint(), {
+    method: 'POST',
+    headers: {'content-type': 'application/json', 'x-nathan-key': cfg.key},
+    body: JSON.stringify({text: text.slice(0, 1500)}),
+  });
+  if (!res.ok){
+    if (res.status === 503) elevenState = 'off';   // no key yet — stop asking this session
+    throw new Error('voice ' + res.status);
+  }
+  elevenState = 'on';
+  const url = URL.createObjectURL(await res.blob());
+  nathanAudio.src = url;
+  nathanAudio.onended = () => URL.revokeObjectURL(url);
+  await nathanAudio.play();
+}
+function speakLocal(text){
+  if (!('speechSynthesis' in window)) return;
+  stopSpeaking();
+  const u = new SpeechSynthesisUtterance(text);
   const v = pickVoice();
   if (v){ u.voice = v; u.lang = v.lang; }
   else u.lang = cfg.lang || 'en-CA';
   u.rate = cfg.rate || 1.02;
   u.pitch = cfg.pitch || 1.0;
   speechSynthesis.speak(u);
+}
+function speak(text){
+  if (!cfg.speak || !text) return;
+  const clean = String(text).replace(/[*`#_]/g, '');
+  if (cfg.key && elevenState !== 'off') speakEleven(clean).catch(() => speakLocal(clean));
+  else speakLocal(clean);
 }
 if ('speechSynthesis' in window){
   speechSynthesis.onvoiceschanged = () => {
@@ -2061,16 +2107,21 @@ function paintSliders(){
 fRate.addEventListener('input', paintSliders);
 fPitch.addEventListener('input', paintSliders);
 
-/* hear the dropdown's current pick before saving anything */
-document.getElementById('btnPreview').addEventListener('click', () => {
+/* hear Nathan before saving anything — the real voice when it's connected,
+   otherwise the dropdown's current browser pick */
+const PREVIEW_LINE = "Hey Nataniel — this is how I'd sound. Two things need you today; the rest can wait.";
+function previewLocal(){
   stopSpeaking();
-  const u = new SpeechSynthesisUtterance(
-    "Hey Nataniel — this is how I'd sound. Two things need you today; the rest can wait.");
+  const u = new SpeechSynthesisUtterance(PREVIEW_LINE);
   const v = voiceList().find(x => x.name === fVoice.value) || pickVoice();
   if (v){ u.voice = v; u.lang = v.lang; }
   u.rate = parseFloat(fRate.value) || 1.02;
   u.pitch = parseFloat(fPitch.value) || 1.0;
   speechSynthesis.speak(u);
+}
+document.getElementById('btnPreview').addEventListener('click', () => {
+  if (cfg.key && elevenState !== 'off') speakEleven(PREVIEW_LINE).catch(previewLocal);
+  else previewLocal();
 });
 
 let draftSpeed = cfg.speed;
