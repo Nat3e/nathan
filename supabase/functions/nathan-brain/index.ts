@@ -8,7 +8,7 @@
 //    ANTHROPIC_API_KEY   your Anthropic API key
 //    NATHAN_ACCESS_KEY   any long random string; the site must send it back
 //  Optional:
-//    NATHAN_MODEL        smart-gear model, defaults to claude-sonnet-5
+//    NATHAN_MODEL        smart-gear model, defaults to claude-opus-5
 //    NATHAN_MODEL_FAST   fast-gear model, defaults to claude-haiku-4-5-20251001
 //    ICLOUD_MAIL_USER / ICLOUD_MAIL_PASSWORD  read-only inbox access
 //
@@ -416,10 +416,14 @@ Deno.serve(async (req: Request) => {
     ...(currentContent ? [{ role: "user", content: currentContent }] : []),
   ];
 
-  /* two gears: fast = Haiku (quick + cheap), smart = Sonnet (default) */
+  /* two gears: fast = Haiku (quick + cheap), smart = Opus (default) */
   const model = body.speed === "fast"
     ? (Deno.env.get("NATHAN_MODEL_FAST") ?? "claude-haiku-4-5-20251001")
-    : (Deno.env.get("NATHAN_MODEL") ?? "claude-sonnet-5");
+    : (Deno.env.get("NATHAN_MODEL") ?? "claude-opus-5");
+
+  /* Opus-class models can decline a request outright (stop_reason "refusal");
+     server-side fallbacks reroute those to a sibling model instead of failing */
+  const opusClass = /^claude-(opus|fable)/.test(model);
 
   /* ── call Claude with streaming on ── */
   const callClaude = (msgs: unknown[]) =>
@@ -429,8 +433,15 @@ Deno.serve(async (req: Request) => {
         "content-type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
+        ...(opusClass ? { "anthropic-beta": "server-side-fallback-2026-07-01" } : {}),
       },
-      body: JSON.stringify({ model, max_tokens: 1400, system, tools: TOOLS, messages: msgs, stream: true }),
+      body: JSON.stringify({
+        model,
+        /* adaptive thinking shares this cap — give Opus room to think AND answer */
+        max_tokens: 4000,
+        ...(opusClass ? { fallbacks: "default" } : {}),
+        system, tools: TOOLS, messages: msgs, stream: true,
+      }),
     });
 
   /* ── stream NDJSON to the page while running the tool loop ── */
