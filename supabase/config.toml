@@ -1,0 +1,19 @@
+# Supabase project config — nathan-assistant
+# Linked project: pgsbqcpmnjhfhonswtin
+project_id = "pgsbqcpmnjhfhonswtin"
+
+# Both functions do their own auth via the x-nathan-key header (see index.ts in
+# each). verify_jwt MUST stay false: with it on, the API gateway rejects every
+# request with 401 before our own gate ever runs, because the page sends no
+# Supabase JWT — only the access key.
+[functions.nathan-brain]
+verify_jwt = false
+
+[functions.nathan-memory]
+verify_jwt = false
+
+[functions.nathan-nightshift]
+verify_jwt = false
+
+[functions.nathan-mail]
+verify_jwt = false

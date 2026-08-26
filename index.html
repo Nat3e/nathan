@@ -1,0 +1,2967 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NATHAN — Assistant</title>
+<meta name="theme-color" content="#040406">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────────  TOKENS  ───────────────────────────── */
+:root{
+  --bg:#040406;
+  --bg-2:#08080c;
+  --panel:rgba(255,255,255,.026);
+  --panel-hi:rgba(255,255,255,.045);
+  --line:rgba(255,255,255,.065);
+  --line-hi:rgba(255,255,255,.12);
+  --txt:#eaedf3;
+  --txt-2:#9aa3b4;
+  --txt-3:#5f6879;
+  --cy:#3ce0f0;
+  --vi:#a78bfa;
+  --pk:#f472b6;
+  --ok:#34d399;
+  --warn:#fbbf24;
+  --r:16px;
+  --r-sm:11px;
+  --shadow:0 24px 60px -20px rgba(0,0,0,.9);
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--sans);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+button,input,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+::selection{background:rgba(60,224,240,.25)}
+
+/* scrollbars */
+.scroll{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.13) transparent}
+.scroll::-webkit-scrollbar{width:6px;height:6px}
+.scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px}
+.scroll::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.22)}
+.scroll::-webkit-scrollbar-track{background:transparent}
+
+/* ─────────────────────────────  AMBIENCE  ───────────────────────────── */
+.ambient{position:fixed;inset:0;pointer-events:none;z-index:0}
+.ambient::before,.ambient::after{content:'';position:absolute;border-radius:50%;filter:blur(120px)}
+.ambient::before{
+  width:70vw;height:70vw;left:50%;top:44%;transform:translate(-50%,-50%);
+  background:radial-gradient(circle,rgba(60,224,240,.10) 0%,rgba(167,139,250,.055) 42%,transparent 68%);
+  animation:breathe 11s var(--ease) infinite;
+}
+.ambient::after{
+  width:44vw;height:44vw;right:-12vw;bottom:-16vw;
+  background:radial-gradient(circle,rgba(167,139,250,.07),transparent 68%);
+}
+@keyframes breathe{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.85}50%{transform:translate(-50%,-50%) scale(1.1);opacity:1}}
+
+.grain{
+  position:fixed;inset:0;z-index:99;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ─────────────────────────────  SHELL  ───────────────────────────── */
+.app{position:relative;z-index:1;height:100vh;height:100dvh;display:flex;flex-direction:column}
+
+header{
+  flex:0 0 auto;display:flex;align-items:center;gap:18px;
+  padding:0 22px;
+  /* keep the buttons below the phone's status bar in home-screen mode */
+  padding-top:env(safe-area-inset-top);
+  height:calc(60px + env(safe-area-inset-top));
+  border-bottom:1px solid var(--line);
+  backdrop-filter:blur(20px);
+  background:linear-gradient(180deg,rgba(255,255,255,.022),transparent);
+}
+.brand{display:flex;align-items:center;gap:11px}
+/* the emblem: a live reactor core — orbiting gradient arc around a breathing heart */
+.brand .mark{
+  width:26px;height:26px;border-radius:50%;position:relative;flex:0 0 auto;
+  background:radial-gradient(circle at 50% 44%,rgba(255,255,255,.85),rgba(60,224,240,.5) 24%,rgba(124,92,255,.22) 50%,transparent 66%);
+  border:1px solid rgba(60,224,240,.22);
+  box-shadow:0 0 22px rgba(60,224,240,.35), inset 0 0 12px rgba(60,224,240,.22);
+}
+.brand .mark::before{
+  content:'';position:absolute;inset:-2px;border-radius:50%;padding:1.5px;
+  background:conic-gradient(from 0deg,transparent 0 42%,var(--cy) 60%,var(--vi) 80%,var(--pk) 93%,transparent);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  animation:markspin 3.4s linear infinite;
+}
+.brand .mark::after{
+  content:'';position:absolute;inset:34%;border-radius:50%;
+  background:radial-gradient(circle,#fff 0%,var(--cy) 55%,transparent 78%);
+  animation:corepulse 2.8s ease-in-out infinite;
+}
+@keyframes markspin{to{transform:rotate(360deg)}}
+@keyframes corepulse{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+.brand h1{margin:0;font-size:14px;font-weight:600;letter-spacing:.16em}
+.brand h1 span{color:var(--txt-3);font-weight:400}
+
+.hgreet{margin-left:6px;padding-left:18px;border-left:1px solid var(--line);color:var(--txt-2);font-size:13px}
+.hgreet b{color:var(--txt);font-weight:500}
+
+/* header navigation */
+.hnav{display:flex;gap:6px}
+.hnav button{
+  padding:8px 15px;border-radius:99px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--txt-2);border:1px solid transparent;transition:.2s var(--ease);
+}
+.hnav button:hover{color:var(--txt);background:var(--panel-hi);border-color:var(--line)}
+.hnav button.on{
+  color:var(--cy);background:rgba(60,224,240,.09);border-color:rgba(60,224,240,.32);
+  box-shadow:0 0 18px rgba(60,224,240,.12);
+}
+
+/* brand + greeting live in the stage's top-left corner */
+.stage-brand{position:absolute;top:22px;left:26px;z-index:6;transition:.4s var(--ease)}
+.stage-brand .brand{gap:14px}
+.stage-brand .mark{width:38px;height:38px;box-shadow:0 0 34px rgba(60,224,240,.45), inset 0 0 16px rgba(60,224,240,.25)}
+.stage-brand h1{font-size:20px;letter-spacing:.14em}
+.stage-brand .hgreet{margin:11px 0 0;padding:0;border:0;font-size:15px}
+.app.chatting .stage-brand{opacity:0;pointer-events:none}
+
+.hspace{flex:1}
+.hmeta{display:flex;align-items:center;gap:16px}
+.clock{font-family:var(--mono);font-size:12px;color:var(--txt-2);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.pill{
+  display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 12px;
+  border:1px solid var(--line);border-radius:99px;background:var(--panel);
+  font-size:11.5px;color:var(--txt-2);letter-spacing:.04em;
+}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(52,211,153,.55);animation:ping 2.4s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(52,211,153,.5)}70%{box-shadow:0 0 0 7px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+
+.iconbtn{
+  width:32px;height:32px;border-radius:9px;display:grid;place-items:center;
+  color:var(--txt-2);border:1px solid transparent;transition:.2s var(--ease);
+}
+.iconbtn:hover{color:var(--txt);background:var(--panel-hi);border-color:var(--line)}
+.iconbtn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* ─────────────────────────────  LAYOUT  ───────────────────────────── */
+main{
+  flex:1;min-height:0;display:grid;
+  grid-template-columns:296px minmax(0,1fr) 316px;
+  grid-template-rows:minmax(0,1fr);
+  gap:18px;padding:18px 22px 22px;
+}
+.col{min-height:0;display:flex;flex-direction:column;gap:14px;overflow-y:auto;padding-right:2px}
+
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;padding:2px 2px 0}
+.sec-head h2{
+  margin:0;font-size:10.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--txt-3);
+}
+.sec-head .act{font-size:11px;color:var(--txt-3);transition:.18s}
+.sec-head .act:hover{color:var(--cy)}
+
+/* ── cards ── */
+.card{
+  border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
+  backdrop-filter:blur(14px);padding:14px;position:relative;overflow:hidden;
+  transition:.28s var(--ease);
+}
+.card:hover{border-color:var(--line-hi);background:var(--panel-hi);transform:translateY(-1px)}
+.card .glow{
+  position:absolute;inset:-1px auto auto -1px;width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(60,224,240,.5),transparent);
+  opacity:0;transition:.35s;
+}
+.card:hover .glow{opacity:1}
+
+/* briefing item */
+.item{display:flex;gap:11px;align-items:flex-start;padding:11px 12px;border-radius:var(--r-sm);transition:.22s var(--ease);cursor:default}
+.item+.item{margin-top:2px}
+.item:hover{background:rgba(255,255,255,.035)}
+.tick{
+  flex:0 0 auto;width:16px;height:16px;border-radius:5px;margin-top:1px;
+  border:1.4px solid var(--line-hi);display:grid;place-items:center;transition:.2s;cursor:pointer;
+}
+.tick:hover{border-color:var(--cy)}
+.tick svg{width:9px;height:9px;stroke:var(--bg);stroke-width:3;fill:none;opacity:0;transition:.2s}
+.item.done .tick{background:var(--cy);border-color:var(--cy)}
+.item.done .tick svg{opacity:1}
+.item.done .itxt{color:var(--txt-3);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.2)}
+/* a finished objective celebrates, then slides out of the briefing */
+.item.gone{opacity:0;transform:translateX(16px);pointer-events:none}
+.ibody{min-width:0;flex:1}
+.itxt{font-size:13px;color:var(--txt);line-height:1.4;transition:.2s}
+.imeta{margin-top:3px;font-size:11px;color:var(--txt-3);display:flex;gap:8px;align-items:center}
+.tag{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 6px;border-radius:5px;border:1px solid var(--line);color:var(--txt-3);
+}
+.tag.hot{color:var(--pk);border-color:rgba(244,114,182,.28);background:rgba(244,114,182,.07)}
+.tag.due{color:var(--warn);border-color:rgba(251,191,36,.28);background:rgba(251,191,36,.07)}
+.tag.ok{color:var(--ok);border-color:rgba(52,211,153,.28);background:rgba(52,211,153,.07)}
+
+/* waiting-on rows */
+.wrow{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r-sm);transition:.2s}
+.wrow:hover{background:rgba(255,255,255,.035)}
+.av{
+  flex:0 0 auto;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+  font-size:10.5px;font-weight:600;letter-spacing:.02em;color:#050508;
+}
+.wtxt{flex:1;min-width:0}
+.wtxt .n{font-size:12.5px;color:var(--txt)}
+.wtxt .d{font-size:11px;color:var(--txt-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wwhen{font-family:var(--mono);font-size:10.5px;color:var(--txt-3);white-space:nowrap}
+
+/* projects */
+.proj{padding:13px 14px;border-radius:var(--r-sm);transition:.25s var(--ease)}
+.proj:hover{background:rgba(255,255,255,.035)}
+.proj+.proj{margin-top:3px}
+.ptop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pname{font-size:13px;font-weight:500;color:var(--txt)}
+.ppct{font-family:var(--mono);font-size:11px;color:var(--txt-2);font-variant-numeric:tabular-nums}
+.psub{margin-top:2px;font-size:11px;color:var(--txt-3)}
+.bar{height:3px;border-radius:99px;background:rgba(255,255,255,.07);margin-top:9px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;width:0;transition:width 1.1s var(--ease)}
+
+/* system strip */
+.sys{display:flex;flex-direction:column;gap:1px}
+.srow{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:9px;font-size:12px;color:var(--txt-2);transition:.2s}
+.srow:hover{background:rgba(255,255,255,.035)}
+.srow .sd{width:5px;height:5px;border-radius:50%;flex:0 0 auto}
+.srow b{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--txt-3);font-weight:400}
+
+/* ─────────────────────────────  STAGE  ───────────────────────────── */
+.stage{
+  position:relative;min-height:0;display:flex;flex-direction:column;align-items:center;
+  border:1px solid var(--line);border-radius:22px;overflow:hidden;
+  background:radial-gradient(ellipse 120% 90% at 50% 0%,rgba(255,255,255,.028),transparent 60%),var(--bg-2);
+}
+
+.orbwrap{
+  position:relative;flex:1;min-height:0;width:100%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  transition:.75s var(--ease);
+}
+.orbstack{position:relative;display:grid;place-items:center;transition:.75s var(--ease)}
+#orb{display:block;width:400px;height:400px;transition:.75s var(--ease)}
+.bloom{
+  position:absolute;width:400px;height:400px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(60,224,240,.17) 0%,rgba(167,139,250,.09) 38%,transparent 66%);
+  filter:blur(34px);animation:bloom 7s var(--ease) infinite;transition:.75s var(--ease);
+}
+@keyframes bloom{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.13);opacity:1}}
+
+.caption{
+  margin-top:26px;text-align:center;transition:.5s var(--ease);
+}
+.transcript{
+  font-size:14px;color:var(--txt-3);letter-spacing:.01em;min-height:20px;
+  transition:.4s;
+}
+.state{
+  margin-top:12px;font-size:30px;font-weight:300;letter-spacing:-.015em;
+  background:linear-gradient(96deg,#fff,#cfe9f5 40%,var(--cy) 72%,var(--vi));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hint{margin-top:11px;font-size:11.5px;color:var(--txt-3);letter-spacing:.03em}
+.hint kbd{
+  font-family:var(--mono);font-size:10px;padding:2px 5px;border-radius:4px;
+  border:1px solid var(--line-hi);background:rgba(255,255,255,.04);color:var(--txt-2);
+}
+
+/* thread */
+.thread{
+  position:absolute;inset:78px 0 118px 0;overflow-y:auto;padding:8px 8% 10px;
+  display:flex;flex-direction:column;gap:14px;
+  opacity:0;pointer-events:none;transition:.5s var(--ease);
+}
+.thread .spacer{flex:1 1 auto;min-height:0}
+.app.chatting .thread{opacity:1;pointer-events:auto}
+
+/* orb collapses into a live status bar at the top of the thread */
+.app.chatting .orbwrap{
+  position:absolute;top:0;left:0;right:0;height:78px;flex:0 0 auto;
+  flex-direction:row;justify-content:center;align-items:center;gap:13px;
+  background:linear-gradient(180deg,rgba(8,8,12,.96) 40%,transparent);
+  z-index:5;pointer-events:none;
+}
+.app.chatting #orb{width:50px;height:50px}
+.app.chatting .bloom{width:60px;height:60px;filter:blur(13px)}
+.app.chatting .caption{margin:0;text-align:left}
+.app.chatting .transcript,.app.chatting .hint{display:none}
+.app.chatting .state{
+  margin:0;font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+}
+
+.msg{max-width:76%;display:flex;gap:11px;animation:rise .45s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.msg.me{align-self:flex-end;flex-direction:row-reverse}
+.mav{
+  flex:0 0 auto;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;
+  font-size:10px;font-weight:600;letter-spacing:.06em;
+}
+.msg.nat .mav{background:conic-gradient(from 200deg,var(--cy),var(--vi),var(--pk),var(--cy));color:#040406}
+.msg.me .mav{background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--txt-2)}
+.bub{
+  padding:11px 15px;border-radius:15px;font-size:13.5px;line-height:1.6;
+  border:1px solid var(--line);background:var(--panel);backdrop-filter:blur(10px);
+}
+.msg.nat .bub{border-top-left-radius:5px}
+.msg.me .bub{border-top-right-radius:5px;background:rgba(60,224,240,.07);border-color:rgba(60,224,240,.18)}
+.typing{display:flex;gap:4px;align-items:center;padding:4px 2px}
+.typing i{width:5px;height:5px;border-radius:50%;background:var(--txt-3);animation:blink 1.3s infinite}
+.typing i:nth-child(2){animation-delay:.18s}
+.typing i:nth-child(3){animation-delay:.36s}
+@keyframes blink{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+
+/* composer */
+.composer{
+  position:absolute;left:0;right:0;bottom:0;padding:20px 8% 22px;
+  background:linear-gradient(180deg,transparent,rgba(4,4,6,.86) 34%);
+}
+.cbox{
+  display:flex;align-items:center;gap:10px;padding:7px 7px 7px 18px;
+  border:1px solid var(--line);border-radius:99px;background:rgba(255,255,255,.035);
+  backdrop-filter:blur(20px);transition:.28s var(--ease);
+  box-shadow:0 14px 40px -18px rgba(0,0,0,.9);
+}
+.cbox:focus-within{border-color:rgba(60,224,240,.36);background:rgba(255,255,255,.05);box-shadow:0 0 0 4px rgba(60,224,240,.06),0 14px 40px -18px rgba(0,0,0,.9)}
+.cbox input{flex:1;min-width:0;background:none;border:0;outline:0;font-size:14px;padding:9px 0}
+.cbox input::placeholder{color:var(--txt-3)}
+.cbtn{
+  width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+  color:var(--txt-2);transition:.22s var(--ease);flex:0 0 auto;
+}
+.cbtn:hover{color:var(--txt);background:rgba(255,255,255,.07)}
+.cbtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.cbtn.mic.on{background:linear-gradient(135deg,var(--cy),var(--vi));color:#040406;box-shadow:0 0 22px rgba(60,224,240,.45)}
+.cbtn.send{background:linear-gradient(135deg,var(--cy),var(--vi));color:#040406;opacity:.35;pointer-events:none}
+.cbtn.send.ready{opacity:1;pointer-events:auto;box-shadow:0 0 20px rgba(60,224,240,.35)}
+.chips{display:flex;gap:7px;margin:0 0 12px;flex-wrap:wrap;justify-content:center}
+.chip{
+  font-size:11.5px;color:var(--txt-2);padding:6px 12px;border-radius:99px;
+  border:1px solid var(--line);background:var(--panel);transition:.22s var(--ease);
+}
+.chip:hover{color:var(--txt);border-color:rgba(60,224,240,.35);background:rgba(60,224,240,.07);transform:translateY(-1px)}
+.app.chatting .chips{display:none}
+
+/* ── responsive ── */
+.mnav{display:none}
+@media (max-width:1240px){
+  main{grid-template-columns:264px minmax(0,1fr)}
+  .col.right{display:none}
+}
+@media (max-width:900px){
+  main{
+    grid-template-columns:minmax(0,1fr);gap:12px;overflow-y:auto;
+    padding:10px 10px calc(70px + env(safe-area-inset-bottom));
+  }
+  .col.left,.col.right{display:none}
+  #orb,.bloom{width:225px;height:225px}
+  .app:not(.chatting) .orbwrap{padding-bottom:150px}  /* keep caption clear of the chips */
+  .caption{margin-top:14px}
+  .state{font-size:22px;margin-top:8px}
+  .hgreet,.clock,.hint,.hnav{display:none}
+  .stage-brand{top:14px;left:16px}
+  .stage-brand .hgreet{display:none}
+  header{padding:0 12px;padding-top:env(safe-area-inset-top);gap:10px}
+  .iconbtn{width:38px;height:38px}      /* bigger tap targets */
+  .iconbtn[title="Notifications"]{display:none}
+  .thread,.composer{padding-left:16px;padding-right:16px}
+  .cbox input{font-size:16px}          /* stops iOS zoom-on-focus */
+  .cal-add{flex-wrap:wrap}
+
+  /* board view: both columns stack into one scrolling page */
+  .app[data-view="board"]:not([data-page]) .stage{display:none}
+  .app[data-view="board"]:not([data-page]) :is(.col.left,.col.right){display:flex;overflow:visible;min-height:auto}
+
+  /* page-specific phone rules live in the final media block at the end of
+     this stylesheet — the page CSS below this block would override them here */
+
+  /* bottom tab bar */
+  .mnav{
+    position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;
+    border-top:1px solid var(--line);background:rgba(6,6,10,.92);backdrop-filter:blur(20px);
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+  }
+  .mnav button{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;
+    color:var(--txt-3);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+    border-radius:10px;transition:.2s;
+  }
+  .mnav button svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .mnav button.on{color:var(--cy)}
+}
+.fade-in{animation:fadeUp .6s var(--ease) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* every list row rises into place, gently staggered */
+:is(.item,.wrow,.proj,.frow,.hab-card,.cd-row){animation:rise .4s var(--ease) both}
+:is(.item,.wrow,.proj,.frow,.hab-card,.cd-row):nth-child(2){animation-delay:40ms}
+:is(.item,.wrow,.proj,.frow,.hab-card,.cd-row):nth-child(3){animation-delay:80ms}
+:is(.item,.wrow,.proj,.frow,.hab-card,.cd-row):nth-child(4){animation-delay:120ms}
+:is(.item,.wrow,.proj,.frow,.hab-card,.cd-row):nth-child(5){animation-delay:160ms}
+:is(.item,.wrow,.proj,.frow,.hab-card,.cd-row):nth-child(6){animation-delay:200ms}
+:is(.item,.wrow,.proj,.frow,.hab-card,.cd-row):nth-child(n+7){animation-delay:240ms}
+.saved-chip{animation:rise .35s var(--ease) both}
+
+/* phone view switches fade their content in */
+.app[data-view="board"] .col{animation:fadeUp .45s var(--ease) both}
+.app[data-view="board"] .col.right{animation-delay:.08s}
+
+/* calm on request */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+}
+
+/* ─────────────────────────────  SETTINGS  ───────────────────────────── */
+.modal{
+  position:fixed;inset:0;z-index:120;display:grid;place-items:center;
+  background:rgba(3,3,6,.72);backdrop-filter:blur(8px);
+  opacity:0;pointer-events:none;transition:.3s var(--ease);
+}
+.modal.open{opacity:1;pointer-events:auto}
+.sheet{
+  width:min(480px,calc(100vw - 36px));max-height:86vh;overflow-y:auto;
+  border:1px solid var(--line-hi);border-radius:20px;padding:24px;
+  background:linear-gradient(180deg,rgba(20,22,30,.98),rgba(10,10,14,.98));
+  box-shadow:var(--shadow);transform:translateY(12px) scale(.98);transition:.3s var(--ease);
+}
+.modal.open .sheet{transform:none}
+.sheet h3{margin:0 0 4px;font-size:16px;font-weight:600;letter-spacing:-.01em}
+.sheet .lead{margin:0 0 20px;font-size:12.5px;color:var(--txt-3);line-height:1.55}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt-3);margin-bottom:6px}
+.field input[type=text],.field input[type=password]{
+  width:100%;padding:10px 12px;border-radius:10px;font-size:12.5px;font-family:var(--mono);
+  border:1px solid var(--line);background:rgba(0,0,0,.35);outline:0;transition:.2s;
+}
+.field input:focus{border-color:rgba(60,224,240,.4);background:rgba(0,0,0,.5)}
+.field .help{margin-top:6px;font-size:11px;color:var(--txt-3);line-height:1.5}
+.switch{display:flex;align-items:center;gap:11px;padding:11px 0;cursor:pointer}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.track{
+  width:38px;height:21px;border-radius:99px;background:rgba(255,255,255,.09);
+  border:1px solid var(--line);position:relative;transition:.25s var(--ease);flex:0 0 auto;
+}
+.track::after{
+  content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;
+  background:var(--txt-3);transition:.25s var(--ease);
+}
+.switch input:checked + .track{background:rgba(60,224,240,.28);border-color:rgba(60,224,240,.5)}
+.switch input:checked + .track::after{transform:translateX(17px);background:var(--cy)}
+.switch .sl{display:block;font-size:13px}
+.switch .sd{display:block;font-size:11px;color:var(--txt-3);margin-top:2px;line-height:1.4}
+.seg{display:flex;gap:6px;padding:4px;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.3)}
+.seg button{
+  flex:1;padding:9px 8px;border-radius:9px;font-size:12px;color:var(--txt-3);
+  transition:.22s var(--ease);white-space:nowrap;
+}
+.seg button:hover{color:var(--txt-2)}
+.seg button.on{background:rgba(60,224,240,.14);color:var(--cy);box-shadow:inset 0 0 0 1px rgba(60,224,240,.28)}
+.sheet .row{display:flex;gap:9px;margin-top:20px}
+.btn{
+  flex:1;padding:11px;border-radius:11px;font-size:13px;font-weight:500;
+  border:1px solid var(--line);background:var(--panel);transition:.22s var(--ease);
+}
+.btn:hover{background:var(--panel-hi);border-color:var(--line-hi)}
+.btn.primary{background:linear-gradient(135deg,var(--cy),var(--vi));color:#040406;border-color:transparent;font-weight:600}
+.btn.primary:hover{filter:brightness(1.1)}
+.status-note{
+  margin-top:16px;padding:11px 13px;border-radius:11px;font-size:11.5px;line-height:1.55;
+  border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--txt-2);
+}
+.status-note b{color:var(--txt)}
+
+/* voice picker + sliders */
+.field select{
+  width:100%;padding:10px 12px;border-radius:10px;font-size:12.5px;
+  border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--txt);outline:0;transition:.2s;
+}
+.field select:focus{border-color:rgba(60,224,240,.4)}
+.field select option{background:#0c0e14;color:var(--txt)}
+.vrow{display:flex;gap:8px}
+.vrow select{flex:1;min-width:0}
+.vrow .btn{flex:0 0 auto;padding:0 16px}
+input[type=range].slider{
+  width:100%;height:4px;-webkit-appearance:none;appearance:none;border-radius:99px;
+  background:rgba(255,255,255,.12);outline:0;margin:10px 0 2px;
+}
+input[type=range].slider::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--cy);box-shadow:0 0 10px rgba(60,224,240,.5);cursor:pointer;
+}
+input[type=range].slider::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;background:var(--cy);border:0;cursor:pointer;
+}
+
+/* voice + connection affordances */
+.pill.demo .dot{background:var(--warn);animation:none;box-shadow:none}
+.pill.err  .dot{background:var(--pk);animation:none;box-shadow:none}
+.transcript.live{color:var(--txt);font-size:15px}
+.cbtn.mic.on{animation:micpulse 1.6s ease-in-out infinite}
+@keyframes micpulse{0%,100%{box-shadow:0 0 18px rgba(60,224,240,.4)}50%{box-shadow:0 0 30px rgba(60,224,240,.75)}}
+.saved-chip{
+  display:inline-flex;align-items:center;gap:5px;margin-top:8px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  padding:3px 8px;border-radius:6px;color:var(--ok);
+  border:1px solid rgba(52,211,153,.28);background:rgba(52,211,153,.07);
+}
+.bub.err{border-color:rgba(244,114,182,.32);background:rgba(244,114,182,.06)}
+
+/* panel empty states */
+.empty{padding:14px 12px;font-size:12px;color:var(--txt-3);line-height:1.5}
+
+/* ─────────────────────────────  FULL PAGES  ───────────────────────────── */
+.page{display:none;flex-direction:column;min-height:0;min-width:0}
+.app[data-page] .page{display:flex;animation:pagein .4s var(--ease) both}
+.app[data-page] main{grid-template-columns:minmax(0,1fr)}
+.app[data-page] :is(.col,.stage){display:none}
+@keyframes pagein{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.pg{display:none;flex-direction:column;min-height:0;flex:1}
+.app[data-page="schedule"] .pg[data-pg="schedule"],
+.app[data-page="finances"] .pg[data-pg="finances"],
+.app[data-page="habits"]   .pg[data-pg="habits"],
+.app[data-page="projects"] .pg[data-pg="projects"]{display:flex}
+
+.pg-head{
+  flex:0 0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
+  padding:4px 4px 16px;border-bottom:1px solid var(--line);margin-bottom:16px;
+}
+.pg-head h2{margin:0;font-size:22px;font-weight:300;letter-spacing:-.02em}
+.pg-sub{margin-top:3px;font-size:12px;color:var(--txt-3);letter-spacing:.03em}
+.pg-body{flex:1;min-height:0;overflow-y:auto;padding:0 4px}
+.pg-inner{max-width:760px}
+.pg-foot{flex:0 0 auto;padding-top:14px;margin-top:6px;border-top:1px solid var(--line)}
+.pg-foot .cal-add{max-width:760px;margin:0}
+
+/* projects page */
+.pcard{
+  position:relative;padding:16px 18px;border-radius:var(--r);margin-bottom:10px;
+  border:1px solid var(--line);background:var(--panel);transition:.25s var(--ease);
+}
+.pcard:hover{border-color:var(--line-hi);background:var(--panel-hi)}
+.pcard .ptop{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:3px}
+.pcard .pname{font-size:15px}
+.pcard .psub{font-size:12px;color:var(--txt-3);margin-bottom:12px}
+.pcard .ppct{font-family:var(--mono);font-size:13px;color:var(--cy)}
+.pcard .bar{height:5px;border-radius:99px}
+.pset{display:flex;gap:5px;margin-top:12px;flex-wrap:wrap}
+.pset button{
+  font-family:var(--mono);font-size:10.5px;color:var(--txt-3);padding:4px 9px;
+  border:1px solid var(--line);border-radius:7px;transition:.18s;
+}
+.pset button:hover{color:var(--cy);border-color:rgba(60,224,240,.4);background:rgba(60,224,240,.07)}
+.pset button.done{margin-left:auto;color:var(--ok);border-color:rgba(52,211,153,.28)}
+.pset button.done:hover{color:#040406;background:var(--ok)}
+
+/* ─────────────────────────────  CALENDAR  ───────────────────────────── */
+.cal-split{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:start}
+.cal-aside{position:sticky;top:0}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-head h3{margin:0}
+.cal-nav{display:flex;align-items:center;gap:5px}
+.cal-nav .today{
+  font-size:11px;color:var(--txt-3);padding:5px 11px;border:1px solid var(--line);
+  border-radius:99px;transition:.2s;
+}
+.cal-nav .today:hover{color:var(--cy);border-color:rgba(60,224,240,.35)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--txt-3);text-align:center;padding:4px 0}
+.cal-cell{
+  min-height:76px;border-radius:9px;border:1px solid transparent;padding:5px 6px;
+  font-size:11px;color:var(--txt-2);cursor:pointer;transition:.15s;
+  display:flex;flex-direction:column;gap:3px;align-items:flex-start;
+  background:rgba(255,255,255,.015);overflow:hidden;
+}
+.cal-cell:hover{background:rgba(255,255,255,.05)}
+.cal-cell.dim{opacity:.32}
+.cal-cell.today .dnum{color:var(--cy);font-weight:600}
+.cal-cell.sel{border-color:rgba(60,224,240,.4);background:rgba(60,224,240,.06)}
+.cal-cell .dnum{font-family:var(--mono);font-size:10.5px}
+.cal-ev{
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:9.5px;line-height:1.35;padding:1px 5px;border-radius:4px;
+  background:rgba(60,224,240,.12);color:var(--cy);
+}
+.cal-ev.task{background:rgba(251,191,36,.12);color:var(--warn)}
+.cal-more{font-size:9px;color:var(--txt-3)}
+.cal-day{margin-top:14px;min-height:20px}
+.cd-row{display:flex;gap:10px;align-items:baseline;padding:7px 10px;border-radius:9px;transition:.15s;cursor:pointer}
+.cd-row:hover{background:rgba(255,255,255,.035)}
+.wrow.clickable{cursor:pointer}
+
+/* ── event detail sheet: tap any plan for the full picture ── */
+.ev-sheet{width:min(420px,calc(100vw - 36px));position:relative;overflow:hidden}
+#evModal.open .ev-accent{
+  position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--cy),var(--vi),var(--pk));
+  animation:evsweep .9s var(--ease) both;
+}
+@keyframes evsweep{from{transform:scaleX(0);transform-origin:left}to{transform:scaleX(1)}}
+#evModal.open .ev-kind{animation:rise .4s var(--ease) both}
+#evModal.open .ev-title{animation:rise .45s var(--ease) .05s both}
+#evModal.open .ev-when{animation:rise .45s var(--ease) .1s both}
+#evModal.open .ev-sub{animation:rise .45s var(--ease) .14s both}
+#evModal.open .ev-note-wrap{animation:rise .5s var(--ease) .18s both}
+.ev-kind{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--txt-3)}
+.ev-title{margin:7px 0 12px;font-size:19px;font-weight:400;letter-spacing:-.01em;line-height:1.3}
+.ev-when{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;color:var(--cy)}
+.ev-when svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.ev-sub{margin-top:7px;font-size:12.5px;color:var(--txt-2)}
+.ev-note-wrap{
+  margin-top:16px;padding:13px 15px;border-radius:12px;
+  border:1px solid rgba(60,224,240,.16);background:rgba(60,224,240,.045);
+}
+.ev-note-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--cy);margin-bottom:7px;opacity:.85}
+.ev-note{font-size:13px;line-height:1.6;color:var(--txt-2);min-height:20px}
+.ev-note.thinking{color:var(--txt-3);animation:pulse-note 1.4s ease-in-out infinite}
+@keyframes pulse-note{0%,100%{opacity:.45}50%{opacity:.9}}
+
+.cd-time{font-family:var(--mono);font-size:11px;color:var(--cy);flex:0 0 auto;min-width:44px}
+.cd-title{font-size:13px}
+.cd-sub{font-size:11px;color:var(--txt-3)}
+.cal-add{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.cal-add input[type=time]{
+  flex:0 0 auto;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+  background:rgba(0,0,0,.35);outline:0;font-family:var(--mono);font-size:12px;color-scheme:dark;
+}
+.cal-add input[type=text]{
+  flex:1;min-width:0;padding:9px 12px;border-radius:10px;border:1px solid var(--line);
+  background:rgba(0,0,0,.35);outline:0;font-size:12.5px;
+}
+.cal-add input:focus{border-color:rgba(60,224,240,.4)}
+.cal-add .btn{flex:0 0 auto;padding:9px 18px}
+.cal-add select{
+  flex:0 0 auto;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+  background:rgba(0,0,0,.35);color:var(--txt);outline:0;font-size:12px;
+}
+.cal-add select option{background:#0c0e14}
+.cal-add input[type=number]{
+  flex:0 0 92px;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+  background:rgba(0,0,0,.35);outline:0;font-family:var(--mono);font-size:12px;
+}
+
+/* ─────────────────────────────  FINANCES  ───────────────────────────── */
+.fin-sum{display:flex;gap:10px;text-align:center;padding:12px 0 14px;border-bottom:1px solid var(--line)}
+.fin-sum .c{flex:1}
+.fin-sum .v{font-size:20px;font-weight:300;letter-spacing:-.02em}
+.fin-sum .l{font-size:10px;color:var(--txt-3);letter-spacing:.1em;text-transform:uppercase;margin-top:2px}
+.fin-list{margin-top:8px}
+.frow{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;transition:.15s}
+.frow:hover{background:rgba(255,255,255,.035)}
+.frow .fd{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
+.frow .ft{flex:1;min-width:0}
+.frow .ft .n{font-size:13px}
+.frow .ft .s{font-size:10.5px;color:var(--txt-3)}
+.frow .fa{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.frow .fa.in{color:var(--ok)}
+.frow .fa.out{color:var(--pk)}
+.frow .fa.due{color:var(--warn)}
+.frow .pay{
+  flex:0 0 auto;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+  padding:4px 9px;border-radius:6px;color:var(--warn);
+  border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.07);transition:.2s;
+}
+.frow .pay:hover{color:#040406;background:var(--warn)}
+.fin-h{margin:10px 10px 2px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--txt-3)}
+.cal-ev.bill{background:rgba(251,191,36,.14);color:var(--warn)}
+
+/* ── habits: a daily mission board, not a checklist ── */
+.hab-hero{
+  display:flex;align-items:center;gap:18px;padding:18px 20px;margin-bottom:14px;
+  border:1px solid var(--line);border-radius:var(--r);position:relative;overflow:hidden;
+  background:linear-gradient(135deg,rgba(60,224,240,.07),rgba(124,92,255,.05) 55%,transparent);
+  animation:rise .4s var(--ease) both;
+}
+.hab-hero::after{content:'';position:absolute;inset:auto -20% -60% -20%;height:120%;
+  background:radial-gradient(ellipse at 50% 100%,rgba(60,224,240,.08),transparent 60%);pointer-events:none}
+.hab-ring{position:relative;width:64px;height:64px;flex:0 0 auto}
+.hab-ring svg.r{width:64px;height:64px;transform:rotate(-90deg)}
+.hab-ring .track{stroke:rgba(255,255,255,.08);fill:none;stroke-width:5}
+.hab-ring .prog{stroke:url(#habGrad);fill:none;stroke-width:5;stroke-linecap:round;
+  transition:stroke-dashoffset .8s var(--ease)}
+.hab-ring .pct{position:absolute;inset:0;display:grid;place-items:center;
+  font-family:var(--mono);font-size:13px;color:var(--cy)}
+.hab-hero-t b{display:block;font-size:15.5px;font-weight:500;letter-spacing:-.01em}
+.hab-hero-t span{display:block;margin-top:3px;font-size:12px;color:var(--txt-3)}
+.hab-hero.perfect{border-color:rgba(52,211,153,.35);
+  background:linear-gradient(135deg,rgba(52,211,153,.09),rgba(60,224,240,.05) 60%,transparent)}
+.hab-hero.perfect .pct{color:var(--ok)}
+
+.hab-card{
+  display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:8px;
+  border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
+  transition:.25s var(--ease);animation:rise .4s var(--ease) both;
+}
+.hab-card:hover{border-color:var(--line-hi);background:var(--panel-hi);transform:translateY(-1px)}
+.hab-card.todo{border-color:rgba(60,224,240,.2)}
+.hab-card.done{opacity:.55}
+.hab-card.done .hab-name{color:var(--txt-2)}
+.hab-mid{flex:1;min-width:0}
+.hab-name{font-size:14.5px;letter-spacing:-.01em}
+.hab-week{display:flex;gap:7px;margin-top:8px}
+.hab-week .wd{display:flex;flex-direction:column;align-items:center;gap:3px}
+.hab-week .wd i{width:9px;height:9px;border-radius:50%;border:1px solid var(--line-hi);transition:.2s}
+.hab-week .wd i.on{background:var(--cy);border-color:var(--cy);box-shadow:0 0 7px rgba(60,224,240,.55)}
+.hab-week .wd u{text-decoration:none;font-size:8px;letter-spacing:.05em;color:var(--txt-3);font-family:var(--mono)}
+.hab-week .wd.today u{color:var(--cy)}
+.hab-right{flex:0 0 auto;text-align:right}
+.hab-streak-l{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt-3);margin-top:2px}
+@keyframes habpop{0%{transform:scale(.7)}55%{transform:scale(1.15)}100%{transform:scale(1)}}
+.hab-tick{
+  flex:0 0 auto;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
+  border:1.6px solid var(--line-hi);transition:.25s var(--ease);color:transparent;cursor:pointer;
+}
+.hab-card.todo .hab-tick{border-color:rgba(60,224,240,.45);box-shadow:0 0 14px rgba(60,224,240,.12)}
+.hab-tick:hover{border-color:var(--cy);box-shadow:0 0 18px rgba(60,224,240,.3)}
+.hab-tick svg{width:17px;height:17px;stroke:currentColor;stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.hab-tick.on{
+  background:linear-gradient(135deg,var(--cy),var(--ok));border-color:transparent;color:#040406;
+  box-shadow:0 0 22px rgba(52,211,153,.45);animation:habpop .4s var(--ease);
+}
+.hab-streak{font-family:var(--mono);font-size:15px;color:var(--warn)}
+.hab-streak.zero{color:var(--txt-3)}
+
+/* photo attach */
+.attachbar{
+  display:none;align-items:center;gap:11px;margin:0 0 10px;padding:8px 10px;
+  border:1px solid var(--line);border-radius:14px;background:var(--panel);backdrop-filter:blur(14px);
+}
+.attachbar.on{display:flex}
+.attachbar img{width:44px;height:44px;border-radius:9px;object-fit:cover;border:1px solid var(--line)}
+.attachbar .ainfo{flex:1;min-width:0}
+.attachbar .an{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.attachbar .ad{font-size:10.5px;color:var(--txt-3)}
+.bub img.snap{display:block;max-width:230px;max-height:230px;border-radius:10px;margin-bottom:8px;border:1px solid var(--line)}
+
+/* ─────────────────────────────  LOCK SCREEN  ───────────────────────────── */
+.lock{
+  position:fixed;inset:0;z-index:300;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:0;background:var(--bg);
+  overflow:hidden;
+}
+.lock.off{display:none}
+/* slow breathing aurora behind everything */
+.lock::before{
+  content:'';position:absolute;width:130vmax;height:130vmax;border-radius:50%;
+  background:radial-gradient(circle,rgba(60,224,240,.09) 0%,rgba(167,139,250,.06) 38%,transparent 64%);
+  filter:blur(70px);animation:breathe 10s var(--ease) infinite;pointer-events:none;
+}
+/* staggered entrance — everything rises into place */
+@keyframes lockin{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+.lock .mark{
+  width:56px;height:56px;border-radius:50%;position:relative;
+  background:radial-gradient(circle at 50% 44%,rgba(255,255,255,.9),rgba(60,224,240,.5) 24%,rgba(124,92,255,.22) 50%,transparent 66%);
+  border:1px solid rgba(60,224,240,.25);
+  animation:lockin .8s var(--ease) both, markglow 4.5s ease-in-out 1.2s infinite;
+}
+@keyframes markglow{
+  0%,100%{box-shadow:0 0 26px rgba(60,224,240,.35)}
+  50%{box-shadow:0 0 52px rgba(60,224,240,.65), 0 0 90px rgba(167,139,250,.25)}
+}
+.lock .mark::before{
+  content:'';position:absolute;inset:-3px;border-radius:50%;padding:2px;
+  background:conic-gradient(from 0deg,transparent 0 42%,var(--cy) 60%,var(--vi) 80%,var(--pk) 93%,transparent);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  animation:markspin 3.4s linear infinite;
+}
+.lock .mark::after{
+  content:'';position:absolute;inset:34%;border-radius:50%;
+  background:radial-gradient(circle,#fff 0%,var(--cy) 55%,transparent 78%);
+  animation:corepulse 2.8s ease-in-out infinite;
+}
+.lock h2{margin:20px 0 4px;font-size:13px;font-weight:600;letter-spacing:.24em;animation:lockin .8s var(--ease) .08s both}
+.lock .sub{font-size:11.5px;color:var(--txt-3);letter-spacing:.04em;animation:lockin .8s var(--ease) .16s both}
+.lock-dots{display:flex;gap:15px;margin:28px 0 32px;animation:lockin .8s var(--ease) .24s both}
+.lock-dots i{
+  width:11px;height:11px;border-radius:50%;border:1.4px solid var(--line-hi);
+  transition:background .3s var(--ease), border-color .3s var(--ease), box-shadow .4s var(--ease);
+}
+.lock-dots i.on{
+  background:var(--cy);border-color:var(--cy);box-shadow:0 0 12px rgba(60,224,240,.7);
+  animation:dotpop .38s var(--ease);
+}
+@keyframes dotpop{0%{transform:scale(.3)}55%{transform:scale(1.5)}100%{transform:scale(1)}}
+/* wrong code: pink flash + shake, then the dots drain */
+.lock-dots.bad{animation:lockshake .45s var(--ease)}
+.lock-dots.bad i{background:var(--pk);border-color:var(--pk);box-shadow:0 0 14px rgba(244,114,182,.7)}
+@keyframes lockshake{0%,100%{transform:translateX(0)}18%,55%{transform:translateX(-10px)}36%,75%{transform:translateX(10px)}}
+/* right code: dots ripple green-cyan in sequence */
+.lock-dots.ok i{background:var(--ok);border-color:var(--ok);animation:dotok .45s var(--ease) both}
+.lock-dots.ok i:nth-child(2){animation-delay:.06s}
+.lock-dots.ok i:nth-child(3){animation-delay:.12s}
+.lock-dots.ok i:nth-child(4){animation-delay:.18s}
+@keyframes dotok{
+  0%{transform:scale(1)}
+  50%{transform:scale(1.7);box-shadow:0 0 22px rgba(52,211,153,.95)}
+  100%{transform:scale(1);box-shadow:0 0 10px rgba(52,211,153,.5)}
+}
+.lock-pad{display:grid;grid-template-columns:repeat(3,74px);gap:15px;animation:lockin .8s var(--ease) .32s both}
+.lock-pad button{
+  height:74px;border-radius:50%;font-size:22px;font-weight:300;color:var(--txt);
+  border:1px solid var(--line);background:var(--panel);
+  transition:transform .22s var(--ease), background .35s, border-color .35s, box-shadow .35s;
+}
+.lock-pad button:active,.lock-pad button.hit{
+  transform:scale(.86);
+  background:rgba(60,224,240,.16);border-color:rgba(60,224,240,.55);
+  box-shadow:0 0 28px rgba(60,224,240,.3);
+}
+.lock-pad button.ghost{border:0;background:none;font-size:17px;color:var(--txt-2)}
+.lock-pad button.ghost:active,.lock-pad button.ghost.hit{background:rgba(255,255,255,.05);box-shadow:none}
+/* cooldown after too many wrong codes */
+.lock .sub{transition:color .4s var(--ease)}
+.lock.cool .sub{color:var(--warn);font-variant-numeric:tabular-nums}
+.lock.cool .lock-pad{opacity:.25;pointer-events:none;filter:saturate(.4);transition:.4s var(--ease)}
+.lock.cool .lock-dots{opacity:.35}
+/* the exit: zoom through the lock into the app */
+.lock.bye{animation:lockbye .7s var(--ease) .3s forwards}
+@keyframes lockbye{
+  0%{opacity:1;transform:scale(1);filter:blur(0)}
+  100%{opacity:0;transform:scale(1.14);filter:blur(14px)}
+}
+
+/* ── PHONE RULES — the LAST block in this stylesheet, on purpose: anything
+      mobile that must override component CSS above belongs HERE and nowhere
+      else. New component CSS goes ABOVE this block. ── */
+@media (max-width:900px){
+  /* board view stacks its columns; the pages' fixed 1fr row made them overlap */
+  .app[data-view="board"]:not([data-page]) main{grid-template-rows:none}
+  /* ONE scroller only: inner panels hand their scroll to the page, so a
+     thumb-drag anywhere moves the board instead of getting trapped */
+  .app[data-view="board"]:not([data-page]) :is(.col,.card){overflow:visible;max-height:none}
+
+  .pg-head{padding:0 0 12px;margin-bottom:12px}
+  .pg-head h2{font-size:19px}
+  .pg-inner{max-width:none}
+
+  /* schedule: month grid on top, day panel + quick-add below */
+  .cal-split{grid-template-columns:minmax(0,1fr);gap:16px}
+  .cal-aside{position:static}
+  .cal-head{flex-wrap:wrap;gap:8px}
+  .cal-cell{min-height:52px;flex-direction:row;flex-wrap:wrap;align-content:flex-start;gap:3px}
+  .cal-cell .dnum{width:100%}
+  /* tiny cells: events become glowing dots — tap the day for the details */
+  .cal-cell .cal-ev{
+    width:7px;height:7px;padding:0;border-radius:50%;color:transparent;overflow:hidden;
+    background:var(--cy);box-shadow:0 0 6px rgba(60,224,240,.6);
+  }
+  .cal-cell .cal-ev.task,.cal-cell .cal-ev.bill{background:var(--warn);box-shadow:0 0 6px rgba(251,191,36,.6)}
+
+  /* quick-add: the plan's name gets its own full-width line above the times */
+  .cal-add{gap:6px}
+  .cal-add input[type=text]{flex:1 0 100%;order:-1}
+
+  /* habits: roomier cards, tighter hero */
+  .hab-hero{padding:15px 16px;gap:14px}
+  .hab-card{padding:13px 14px}
+  .hab-week{gap:6px}
+}
+</style>
+</head>
+<body>
+<div class="lock" id="lock">
+  <div class="mark"></div>
+  <h2>NATHAN</h2>
+  <div class="sub">Enter your code</div>
+  <div class="lock-dots" id="lockDots"><i></i><i></i><i></i><i></i></div>
+  <div class="lock-pad" id="lockPad">
+    <button>1</button><button>2</button><button>3</button>
+    <button>4</button><button>5</button><button>6</button>
+    <button>7</button><button>8</button><button>9</button>
+    <button class="ghost" data-k="none"></button><button>0</button><button class="ghost" data-k="del">⌫</button>
+  </div>
+</div>
+<div class="ambient"></div>
+<div class="grain"></div>
+
+<div class="app" id="app">
+
+  <header>
+    <nav class="hnav" id="hnav">
+      <button data-page="">Chat</button>
+      <button data-page="schedule">Schedule</button>
+      <button data-page="finances">Finances</button>
+      <button data-page="habits">Habits</button>
+      <button data-page="projects">Projects</button>
+    </nav>
+    <div class="hspace"></div>
+    <div class="hmeta">
+      <div class="clock" id="clock">--:--</div>
+      <div class="pill"><span class="dot"></span> Online</div>
+      <button class="iconbtn" title="Calendar" id="btnCalTop"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></button>
+      <button class="iconbtn" title="Notifications"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></button>
+      <button class="iconbtn" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ───────── LEFT : BRIEFING ───────── -->
+    <aside class="col left scroll">
+
+      <div class="sec-head fade-in"><h2>Today's Briefing</h2><button class="act" id="btnRefresh">Refresh</button></div>
+
+      <div class="card fade-in" style="animation-delay:.05s">
+        <span class="glow"></span>
+        <div id="tasks"></div>
+      </div>
+
+      <div class="sec-head fade-in" style="animation-delay:.1s"><h2>Waiting On</h2><button class="act">All</button></div>
+
+      <div class="card fade-in" style="animation-delay:.15s;padding:6px">
+        <span class="glow"></span>
+        <div id="waiting"></div>
+      </div>
+
+      <div class="sec-head fade-in" style="animation-delay:.2s"><h2>Coming Up</h2><button class="act" id="btnCal">Calendar</button></div>
+
+      <div class="card fade-in" style="animation-delay:.25s;padding:6px">
+        <span class="glow"></span>
+        <div id="upcoming"></div>
+      </div>
+    </aside>
+
+    <!-- ───────── CENTER : ORB + CHAT ───────── -->
+    <section class="stage" id="stage">
+
+      <div class="stage-brand">
+        <div class="brand">
+          <div class="mark"></div>
+          <h1>NATHAN<span>&nbsp;/ assistant</span></h1>
+        </div>
+        <div class="hgreet"><span id="greet">Good evening</span>, <b>Nataniel</b></div>
+      </div>
+
+      <div class="orbwrap">
+        <div class="orbstack">
+          <div class="bloom"></div>
+          <canvas id="orb" width="400" height="400"></canvas>
+        </div>
+        <div class="caption">
+          <div class="transcript" id="transcript">Ask me anything — or just say what's on your mind.</div>
+          <div class="state" id="state">Ready</div>
+          <div class="hint">Press <kbd>/</kbd> to type &nbsp;·&nbsp; <kbd>Space</kbd> to talk</div>
+        </div>
+      </div>
+
+      <div class="thread scroll" id="thread"><div class="spacer"></div></div>
+
+      <div class="composer">
+        <div class="chips" id="chips">
+          <button class="chip">☀️ Morning briefing</button>
+          <button class="chip">What's on my plate today?</button>
+          <button class="chip">Status on the WISMO agent</button>
+          <button class="chip">Draft an outreach email</button>
+          <button class="chip">What do you remember about me?</button>
+        </div>
+        <div class="attachbar" id="attachBar">
+          <img id="attachThumb" alt="">
+          <div class="ainfo"><div class="an" id="attachName">photo</div><div class="ad">will be sent with your next message</div></div>
+          <button class="cbtn" id="attachX" title="Remove"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+        <div class="cbox">
+          <button class="cbtn" id="attach" title="Add a photo"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5a2 2 0 0 0-3 0L6 20"/></svg></button>
+          <input type="file" id="attachFile" accept="image/*" style="display:none">
+          <input id="input" type="text" placeholder="Message Nathan…" autocomplete="off" spellcheck="false">
+          <button class="cbtn mic" id="mic" title="Voice"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
+          <button class="cbtn send" id="send" title="Send"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────── RIGHT : PROJECTS ───────── -->
+    <aside class="col right scroll">
+
+      <div class="sec-head fade-in"><h2>Active Projects</h2><button class="act">Manage</button></div>
+
+      <div class="card fade-in" style="animation-delay:.05s;padding:6px">
+        <span class="glow"></span>
+        <div id="projects"></div>
+      </div>
+
+      <div class="sec-head fade-in" style="animation-delay:.1s"><h2>Finances</h2><button class="act" id="btnFin">Open</button></div>
+
+      <div class="card fade-in" style="animation-delay:.15s">
+        <span class="glow"></span>
+        <div style="display:flex;gap:10px;text-align:center">
+          <div style="flex:1">
+            <div style="font-size:21px;font-weight:300;letter-spacing:-.02em;color:var(--ok)" id="finIn">—</div>
+            <div style="font-size:10px;color:var(--txt-3);letter-spacing:.1em;text-transform:uppercase;margin-top:2px">In</div>
+          </div>
+          <div style="width:1px;background:var(--line)"></div>
+          <div style="flex:1">
+            <div style="font-size:21px;font-weight:300;letter-spacing:-.02em;color:var(--pk)" id="finOut">—</div>
+            <div style="font-size:10px;color:var(--txt-3);letter-spacing:.1em;text-transform:uppercase;margin-top:2px">Out</div>
+          </div>
+          <div style="width:1px;background:var(--line)"></div>
+          <div style="flex:1">
+            <div style="font-size:21px;font-weight:300;letter-spacing:-.02em" id="finNet">—</div>
+            <div style="font-size:10px;color:var(--txt-3);letter-spacing:.1em;text-transform:uppercase;margin-top:2px">Net</div>
+          </div>
+        </div>
+        <div id="finNext" style="margin-top:11px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;color:var(--txt-3)">This month</div>
+        <div id="finWork" style="margin-top:6px;font-size:11px;color:var(--cy);display:none"></div>
+      </div>
+
+      <div class="sec-head fade-in" style="animation-delay:.2s"><h2>Systems</h2></div>
+
+      <div class="card fade-in" style="animation-delay:.25s;padding:6px">
+        <span class="glow"></span>
+        <div class="sys" id="systems"></div>
+      </div>
+    </aside>
+
+    <!-- ───────── FULL PAGES ───────── -->
+    <section class="page" id="page">
+
+      <!-- SCHEDULE -->
+      <div class="pg" data-pg="schedule">
+        <div class="pg-head">
+          <div><h2>Schedule</h2><div class="pg-sub" id="calTitle">—</div></div>
+          <div class="cal-nav">
+            <button class="today" id="calTodayBtn">Today</button>
+            <button class="iconbtn" id="calPrev" title="Previous month"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+            <button class="iconbtn" id="calNext" title="Next month"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+        </div>
+        <div class="pg-body scroll">
+          <div class="cal-split">
+            <div class="cal-grid" id="calGrid"></div>
+            <div class="cal-aside">
+              <div class="cal-day" id="calDay"></div>
+              <div class="cal-add">
+                <input type="time" id="calTime" value="09:00" title="Starts">
+                <input type="time" id="calTimeEnd" title="Ends (optional)">
+                <input type="text" id="calText" placeholder="Add a plan for this day…" autocomplete="off" spellcheck="false">
+                <button class="btn primary" id="calAdd">Add</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FINANCES -->
+      <div class="pg" data-pg="finances">
+        <div class="pg-head">
+          <div><h2>Finances</h2><div class="pg-sub" id="finTitle">—</div></div>
+          <div class="cal-nav">
+            <button class="today" id="finTodayBtn">This month</button>
+            <button class="iconbtn" id="finPrev" title="Previous month"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+            <button class="iconbtn" id="finNext2" title="Next month"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+        </div>
+        <div class="pg-body scroll">
+          <div class="pg-inner">
+            <div class="fin-sum" id="finSum"></div>
+            <div id="finList"></div>
+          </div>
+        </div>
+        <div class="pg-foot">
+          <div class="cal-add">
+            <select id="finKind">
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+              <option value="bill">Bill</option>
+            </select>
+            <input type="number" id="finAmt" placeholder="0.00" min="0" step="0.01">
+            <input type="text" id="finText" placeholder="What was it?" autocomplete="off" spellcheck="false">
+            <button class="btn primary" id="finAdd">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- HABITS -->
+      <div class="pg" data-pg="habits">
+        <div class="pg-head">
+          <div><h2>Habits</h2><div class="pg-sub" id="habSub">—</div></div>
+        </div>
+        <div class="pg-body scroll">
+          <div class="pg-inner"><div id="habList"></div></div>
+        </div>
+        <div class="pg-foot">
+          <div class="cal-add">
+            <input type="text" id="habText" placeholder="Add a daily habit…" autocomplete="off" spellcheck="false">
+            <button class="btn primary" id="habAdd">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROJECTS -->
+      <div class="pg" data-pg="projects">
+        <div class="pg-head">
+          <div><h2>Projects</h2><div class="pg-sub" id="projSub">—</div></div>
+        </div>
+        <div class="pg-body scroll">
+          <div class="pg-inner"><div id="projList"></div></div>
+        </div>
+        <div class="pg-foot">
+          <div class="cal-add">
+            <input type="text" id="projText" placeholder="Start a project…" autocomplete="off" spellcheck="false">
+            <input type="text" id="projSubText" placeholder="One line about it (optional)" autocomplete="off" spellcheck="false">
+            <button class="btn primary" id="projAdd">Add</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- phone-only bottom tabs -->
+  <nav class="mnav" id="mnav">
+    <button data-mview="chat" class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/></svg>Chat</button>
+    <button data-mview="board"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>Board</button>
+    <button data-goto="schedule"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Agenda</button>
+    <button data-goto="habits"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>Habits</button>
+    <button data-goto="finances"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Money</button>
+  </nav>
+</div>
+
+<!-- ───────── SETTINGS ───────── -->
+<div class="modal" id="modal">
+  <div class="sheet">
+    <h3>Nathan settings</h3>
+    <p class="lead">Your access key is stored only in this browser. It never leaves your machine except as a header to your own Supabase function.</p>
+
+    <div class="field">
+      <label>How Nathan thinks</label>
+      <div class="seg" id="fSpeed">
+        <button data-speed="fast">⚡ Fast</button>
+        <button data-speed="smart">🧠 Smart</button>
+      </div>
+      <div class="help" id="speedHelp"></div>
+    </div>
+
+    <div class="field">
+      <label for="fEndpoint">Brain endpoint</label>
+      <input type="text" id="fEndpoint" spellcheck="false" autocomplete="off">
+      <div class="help">Your <code>nathan-brain</code> Edge Function URL.</div>
+    </div>
+
+    <div class="field">
+      <label for="fKey">Access key</label>
+      <input type="password" id="fKey" spellcheck="false" autocomplete="off" placeholder="paste your NATHAN_ACCESS_KEY">
+      <div class="help">Must match the <code>NATHAN_ACCESS_KEY</code> secret in Supabase.</div>
+    </div>
+
+    <div class="field">
+      <label for="fLang">Voice language</label>
+      <input type="text" id="fLang" spellcheck="false" autocomplete="off" placeholder="en-CA">
+      <div class="help">Try <code>en-CA</code> or <code>fr-CA</code>.</div>
+    </div>
+
+    <div class="field">
+      <label for="fVoice">Nathan's voice</label>
+      <div class="vrow">
+        <select id="fVoice"></select>
+        <button class="btn" id="btnPreview" type="button">Listen</button>
+      </div>
+      <div class="help">Voices come from this browser. <b>Microsoft Edge</b> has the most natural
+      free ones — open this same page in Edge and pick anything with “Natural” in the name.</div>
+    </div>
+
+    <div class="field">
+      <label>Speaking speed — <span id="rateVal">1.0×</span></label>
+      <input type="range" class="slider" id="fRate" min="0.8" max="1.3" step="0.05">
+    </div>
+
+    <div class="field">
+      <label>Pitch — <span id="pitchVal">1.0</span></label>
+      <input type="range" class="slider" id="fPitch" min="0.7" max="1.3" step="0.05">
+    </div>
+
+    <div class="field">
+      <label for="fPin">Lock code</label>
+      <input type="password" id="fPin" maxlength="4" autocomplete="off" placeholder="unchanged">
+      <div class="help">4 digits, asked whenever Nathan opens — and it's all a new phone needs to
+      connect. Type a new code to change it everywhere, type <code>off</code> to skip the lock on
+      this device only, or leave empty to keep the current one.</div>
+    </div>
+
+    <label class="switch">
+      <input type="checkbox" id="fSpeak"><span class="track"></span>
+      <span><span class="sl">Speak replies out loud</span><span class="sd">Nathan reads his answers back to you</span></span>
+    </label>
+
+    <label class="switch">
+      <input type="checkbox" id="fAuto"><span class="track"></span>
+      <span><span class="sl">Send as soon as I stop talking</span><span class="sd">No need to press send after dictating</span></span>
+    </label>
+
+    <div class="status-note" id="setupNote"></div>
+
+    <div class="row">
+      <button class="btn" id="btnCancel">Cancel</button>
+      <button class="btn primary" id="btnSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────── EVENT DETAILS ───────── -->
+<div class="modal" id="evModal">
+  <div class="sheet ev-sheet">
+    <div class="ev-accent"></div>
+    <div class="ev-kind" id="evKind">PLANNED</div>
+    <div class="ev-title" id="evTitle"></div>
+    <div class="ev-when"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="evWhen"></span></div>
+    <div class="ev-sub" id="evSub"></div>
+    <div class="ev-note-wrap">
+      <div class="ev-note-label">✦ Nathan's take</div>
+      <div class="ev-note" id="evNote"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   DEMO DATA  —  shown only while no access key is set.
+   With a key, the panels render the live board from Supabase.
+   ══════════════════════════════════════════════════════════════ */
+const TASKS = [
+  {t:'Define the WISMO agent MVP — scope the 3 core flows', m:'AI Business', tag:'hot',  tagText:'Priority'},
+  {t:'Build outreach list: 20 local Rosemère businesses',    m:'AI Business', tag:'',     tagText:'Today'},
+  {t:'Pick pricing model — retainer vs per-workflow',        m:'Decision',    tag:'due',  tagText:'This week'},
+  {t:'Supabase memory store — migrated and live',            m:'Nathan',      tag:'ok',   tagText:'Done', done:true},
+];
+const WAITING = [
+  {n:'Shopify dev forum', d:'Reply on webhook rate limits', w:'2d',  c:'#3ce0f0'},
+  {n:'Anthropic',         d:'API key approval for Nathan',  w:'1d',  c:'#a78bfa'},
+  {n:'Marc',              d:'Intro to his café owner group',w:'4h',  c:'#f472b6'},
+];
+const UPCOMING = [
+  {n:'Shift — McDonald\'s', d:'Tomorrow', w:'16:00', c:'#fbbf24'},
+  {n:'Deep work block',     d:'Thursday', w:'09:00', c:'#34d399'},
+  {n:'Review week + plan',  d:'Sunday',   w:'19:00', c:'#3ce0f0'},
+];
+const PROJECTS = [
+  {n:'AI Service Business', s:'Positioning + first 3 clients', p:35, c:['#3ce0f0','#a78bfa']},
+  {n:'WISMO Support Agent', s:'Shopify order-status agent',    p:18, c:['#a78bfa','#f472b6']},
+  {n:'Nathan Assistant',    s:'This interface',                p:62, c:['#3ce0f0','#34d399']},
+  {n:'Claude Skills Library',s:'Reusable installable skills',  p:45, c:['#fbbf24','#f472b6']},
+];
+const SYSTEMS = [
+  {n:'Nathan brain', v:'checking…', c:'#5f6879', id:'sysBrain'},
+  {n:'Memory store', v:'—', c:'#34d399', id:'sysMem'},
+  {n:'Gmail',                   v:'planned', c:'#5f6879'},
+  {n:'Google Drive',            v:'planned', c:'#5f6879'},
+  {n:'Voice',                   v:'ready', c:'#34d399'},
+];
+const REPLIES = [
+  "Here's where you stand. Two things actually need you today: the WISMO MVP scope and the outreach list. Everything else can wait until Thursday.",
+  "The WISMO agent is at about 18%. You've got the concept and the target market — what's missing is the order-lookup flow. That's the piece worth building first.",
+  "I've got it. Want me to draft it in your voice, or keep it neutral and professional for a first cold approach?",
+  "I remember you're in Rosemère, working part-time while you build this out. You chose services over products, you're aiming at local businesses for workflow automation, and WISMO is your first real product idea.",
+];
+
+/* ══════════════════════════════════════════════════════════════
+   THE ORB
+   ══════════════════════════════════════════════════════════════ */
+const cvs = document.getElementById('orb');
+const ctx = cvs.getContext('2d');
+let DPR = Math.min(window.devicePixelRatio || 1, 2);
+let W = 0, H = 0, CX = 0, CY = 0, R = 0;
+
+function sizeOrb(){
+  const rect = cvs.getBoundingClientRect();
+  W = rect.width; H = rect.height;
+  cvs.width  = Math.round(W * DPR);
+  cvs.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  CX = W / 2; CY = H / 2; R = Math.min(W, H) * 0.40;
+}
+
+/* fibonacci sphere */
+const N = 2600, PTS = [];
+for (let i = 0; i < N; i++){
+  const k = i + 0.5;
+  const phi = Math.acos(1 - 2 * k / N);
+  const th  = Math.PI * (1 + Math.sqrt(5)) * k;
+  PTS.push({
+    x: Math.cos(th) * Math.sin(phi),
+    y: Math.sin(th) * Math.sin(phi),
+    z: Math.cos(phi),
+    r: Math.random(),
+  });
+}
+
+let amp = 0.22, ampTarget = 0.22, spin = 0;
+const TAU = Math.PI * 2;
+
+/* project a point that already sits in sphere space */
+function proj(x, y, z){
+  const sc = 0.86 / (1.20 - z * 0.36);
+  return [CX + x * R * sc, CY + y * R * sc, sc];
+}
+
+/* an orbital ring: circle in its own plane, tilted, drawn with depth-aware alpha */
+function drawRing(t, rad, tiltX, tiltZ, speed, r, g, b, base){
+  const cx1 = Math.cos(tiltX), sx1 = Math.sin(tiltX);
+  const cz1 = Math.cos(tiltZ), sz1 = Math.sin(tiltZ);
+  const SEG = 96, phase = t * speed;
+  let prev = null;
+  ctx.lineCap = 'round';
+  for (let i = 0; i <= SEG; i++){
+    const a = (i / SEG) * TAU + phase;
+    const x0 = Math.cos(a) * rad, z0 = Math.sin(a) * rad;
+    const y1 = -z0 * sx1, z1 = z0 * cx1;
+    const x2 = x0 * cz1 - y1 * sz1, y2 = x0 * sz1 + y1 * cz1;
+    const p = proj(x2, y2, z1);
+    if (prev){
+      const depth = (z1 / rad + 1) / 2;
+      const a2 = base * (0.10 + depth * depth * 1.5) * (0.55 + amp * 0.75);
+      ctx.strokeStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + a2 + ')';
+      ctx.lineWidth = 0.5 + depth * 1.15;
+      ctx.beginPath(); ctx.moveTo(prev[0], prev[1]); ctx.lineTo(p[0], p[1]); ctx.stroke();
+    }
+    prev = p;
+  }
+}
+
+function drawOrb(t){
+  ctx.clearRect(0, 0, W, H);
+  amp += (ampTarget - amp) * 0.055;
+  spin += 0.0014 + amp * 0.0020;
+  const small = R < 42;
+
+  const cs = Math.cos(spin), sn = Math.sin(spin);
+  const tilt = -0.30, ct = Math.cos(tilt), st = Math.sin(tilt);
+
+  /* ── 1. atmospheric halo, outside the shell ── */
+  const halo = ctx.createRadialGradient(CX, CY, R * 0.72, CX, CY, R * 1.5);
+  halo.addColorStop(0,   'rgba(60,224,240,' + (0.10 + amp * 0.13) + ')');
+  halo.addColorStop(0.45,'rgba(120,140,255,' + (0.05 + amp * 0.07) + ')');
+  halo.addColorStop(1,   'rgba(167,139,250,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(CX, CY, R * 1.5, 0, TAU); ctx.fill();
+
+  /* ── 2. sphere body: deep, lit from below-left ── */
+  const body = ctx.createRadialGradient(CX - R * .22, CY + R * .3, R * .06, CX, CY, R);
+  body.addColorStop(0,   'rgba(38,120,168,' + (0.30 + amp * 0.22) + ')');
+  body.addColorStop(0.42,'rgba(22,50,102,'  + (0.30 + amp * 0.12) + ')');
+  body.addColorStop(0.82,'rgba(10,14,42,0.42)');
+  body.addColorStop(1,   'rgba(6,8,24,0.14)');
+  ctx.fillStyle = body;
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, TAU); ctx.fill();
+
+  ctx.globalCompositeOperation = 'lighter';
+
+  /* ── 3. orbital rings behind + around the shell ── */
+  if (!small){
+    drawRing(t, 1.00, -1.18,  0.28,  0.00030,  60, 224, 240, 0.32);
+    drawRing(t, 1.15, -1.34, -0.52, -0.00019, 167, 139, 250, 0.26);
+    drawRing(t, 0.84, -0.92,  0.86,  0.00044, 244, 114, 182, 0.16);
+  }
+
+  /* ── 4. particle shell ── */
+  const step = small ? 4 : 1;
+  for (let i = 0; i < N; i += step){
+    const p = PTS[i];
+    const x = p.x * cs - p.z * sn;
+    const z = p.x * sn + p.z * cs;
+    const y2 = p.y * ct - z * st;
+    const z2 = p.y * st + z * ct;
+
+    /* surface displacement — breathing + reactive ripple */
+    const wob = 1
+      + 0.030 * Math.sin(t * 0.0009 + p.r * 6.5)
+      + amp * 0.14 * Math.sin(t * 0.0026 + y2 * 3.4 + p.r * 5.0);
+
+    const q = proj(x * wob, y2 * wob, z2);
+    const depth = (z2 + 1) / 2;                       // 0 back → 1 front
+    const spark = p.r > 0.972 ? 2.3 : 1;              // a few bright motes
+    const a = (0.05 + depth * depth * 0.85) * (0.5 + amp * 0.75) * spark;
+    if (a < 0.015) continue;
+    const size = (0.24 + depth * 1.20) * (0.62 + p.r * 0.62) * (0.85 + amp * 0.45) * (spark > 1 ? 1.6 : 1);
+
+    const hue = 176 + ((y2 + 1) / 2) * 74;            // cyan-dominant, violet toward the base
+    ctx.fillStyle = 'hsla(' + hue + ',92%,' + (62 + depth * 24) + '%,' + Math.min(a, 1) + ')';
+    ctx.beginPath(); ctx.arc(q[0], q[1], size, 0, TAU); ctx.fill();
+  }
+
+  /* ── 5. waveform through the middle ── */
+  const wa = 0.30 + amp * 0.85;                        // never fully flat
+  ctx.save();
+  ctx.beginPath(); ctx.arc(CX, CY, R * 0.985, 0, TAU); ctx.clip();
+  for (let L = 0; L < 4; L++){
+    /* long soft ramps at both ends so the wave dissolves well before the rim */
+    const g = ctx.createLinearGradient(CX - R, 0, CX + R, 0);
+    g.addColorStop(0,    'rgba(60,224,240,0)');
+    g.addColorStop(0.10, 'rgba(60,224,240,0)');
+    g.addColorStop(0.30, 'rgba(80,236,250,' + (0.34 + amp * 0.5) + ')');
+    g.addColorStop(0.55, 'rgba(190,175,255,' + (0.42 + amp * 0.55) + ')');
+    g.addColorStop(0.72, 'rgba(244,114,182,' + (0.26 + amp * 0.4) + ')');
+    g.addColorStop(0.90, 'rgba(244,114,182,0)');
+    g.addColorStop(1,    'rgba(244,114,182,0)');
+    ctx.strokeStyle = g;
+    ctx.lineWidth = (1.3 - L * 0.26) * (small ? 0.6 : 1);
+    ctx.beginPath();
+    for (let i = 0; i <= 170; i++){
+      const u = i / 170;
+      const px = CX - R + u * 2 * R;
+      const env = Math.pow(Math.sin(u * Math.PI), 1.5);
+      const py = CY + env * R * 0.30 * wa * (
+          Math.sin(u *  8.5 + t * 0.0023 + L * 1.75) * 0.60 +
+          Math.sin(u * 16.0 - t * 0.0031 + L * 2.55) * 0.26 +
+          Math.sin(u *  3.4 + t * 0.0013 + L * 0.70) * 0.48
+      ) - L * 0.4;
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  /* ── 6. glass rim: bright where the light hits, fading away ── */
+  const rimR = R * (1 + amp * 0.014);
+  const rim = ctx.createLinearGradient(CX - R, CY + R, CX + R, CY - R);
+  rim.addColorStop(0,   'rgba(90,240,255,' + (0.85 + amp * 0.15) + ')');
+  rim.addColorStop(0.4, 'rgba(120,190,255,' + (0.34 + amp * 0.3) + ')');
+  rim.addColorStop(0.75,'rgba(167,139,250,' + (0.55 + amp * 0.35) + ')');
+  rim.addColorStop(1,   'rgba(244,114,182,' + (0.30 + amp * 0.3) + ')');
+  ctx.strokeStyle = rim;
+  ctx.lineWidth = small ? 1 : 1.6;
+  ctx.beginPath(); ctx.arc(CX, CY, rimR, 0, TAU); ctx.stroke();
+
+  /* inner rim falloff, gives it thickness */
+  const inner = ctx.createRadialGradient(CX, CY, R * 0.86, CX, CY, R);
+  inner.addColorStop(0, 'rgba(60,224,240,0)');
+  inner.addColorStop(1, 'rgba(90,220,255,' + (0.16 + amp * 0.18) + ')');
+  ctx.fillStyle = inner;
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, TAU); ctx.fill();
+
+  ctx.globalCompositeOperation = 'source-over';
+
+  /* ── 7. tight rotating accent arcs, just outside the rim —
+          drawn in segments whose alpha swells mid-arc and melts to
+          nothing at both ends, so nothing ever visibly "cuts" ── */
+  if (!small){
+    const aR = R * 1.055, arcA = t * 0.00040;
+    const fadeArc = (a0, a1, r, gc, b, maxA, width) => {
+      const SEG = 22;
+      ctx.lineCap = 'round';
+      ctx.lineWidth = width;
+      for (let i = 0; i < SEG; i++){
+        const t0 = i / SEG, t1 = (i + 1) / SEG;
+        const fall = Math.sin(((t0 + t1) / 2) * Math.PI);      // 0 ends → 1 middle
+        const alpha = maxA * fall * fall;
+        if (alpha < 0.01) continue;
+        ctx.strokeStyle = 'rgba(' + r + ',' + gc + ',' + b + ',' + alpha + ')';
+        ctx.beginPath();
+        ctx.arc(CX, CY, aR, a0 + (a1 - a0) * t0, a0 + (a1 - a0) * t1 + 0.004);
+        ctx.stroke();
+      }
+    };
+    fadeArc(arcA, arcA + 0.60, 60, 224, 240, 0.34 + amp * 0.4, 1.5);
+    fadeArc(arcA + Math.PI, arcA + Math.PI + 0.36, 167, 139, 250, 0.26 + amp * 0.35, 1.5);
+    fadeArc(-arcA * 1.6, -arcA * 1.6 + 1.5, 255, 255, 255, 0.12 + amp * 0.12, 0.7);
+  }
+}
+
+let raf;
+function loop(t){ drawOrb(t); raf = requestAnimationFrame(loop); }
+sizeOrb(); raf = requestAnimationFrame(loop);
+addEventListener('resize', () => { DPR = Math.min(window.devicePixelRatio || 1, 2); sizeOrb(); });
+new ResizeObserver(() => sizeOrb()).observe(cvs);   // keeps up when the orb collapses into the status bar
+
+/* ══════════════════════════════════════════════════════════════
+   STATE
+   ══════════════════════════════════════════════════════════════ */
+const app        = document.getElementById('app');
+const stateEl    = document.getElementById('state');
+const transEl    = document.getElementById('transcript');
+const inputEl    = document.getElementById('input');
+const sendBtn    = document.getElementById('send');
+const micBtn     = document.getElementById('mic');
+const threadEl   = document.getElementById('thread');
+
+const STATES = {
+  ready:     {label:'Ready',      amp:0.24, sub:'Ask me anything — or just say what\'s on your mind.'},
+  listening: {label:'Listening…', amp:0.95, sub:'I\'m hearing you.'},
+  thinking:  {label:'Thinking…',  amp:0.45, sub:'Working through it.'},
+  speaking:  {label:'Speaking',   amp:0.72, sub:'Here\'s what I\'ve got.'},
+};
+function setState(k, sub){
+  const s = STATES[k];
+  ampTarget = s.amp;
+  stateEl.textContent = s.label;
+  transEl.textContent = sub || s.sub;
+  transEl.classList.toggle('live', k === 'listening' && !!sub);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONFIG  —  kept in this browser only
+   ══════════════════════════════════════════════════════════════ */
+const SUPA = 'https://pgsbqcpmnjhfhonswtin.supabase.co/functions/v1';
+const DEFAULT_ENDPOINT = SUPA + '/nathan-brain';
+/* memory lives next to the brain: same functions host, sibling function —
+   derived from the configured endpoint so both move together */
+const memoryEndpoint = () => (cfg.endpoint || DEFAULT_ENDPOINT).replace(/\/[^/]+\/?$/, '/nathan-memory');
+const CFG_KEY = 'nathan.cfg.v2';
+
+let cfg = {
+  speed: 'smart',                         // 'fast' = Haiku (quick, cheap), 'smart' = Sonnet (deep)
+  endpoint: DEFAULT_ENDPOINT,
+  key: '',
+  lang: 'en-CA', speak: true, auto: true,
+  voice: '',                              // '' = auto-pick the most natural available
+  rate: 1.02, pitch: 1.0,
+  lockOff: false,                         // skip the lock screen on this device only
+};
+try {
+  const raw = localStorage.getItem(CFG_KEY);
+  if (raw) cfg = Object.assign(cfg, JSON.parse(raw));
+} catch (e) { /* private mode / file restrictions — fall back to in-memory */ }
+
+function saveCfg(){
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch (e) {}
+}
+
+/* setup link: opening the site with #key=... configures this browser in one tap,
+   then scrubs the key from the address bar. The fragment never reaches any server. */
+function applySetupLink(){
+  try {
+    const h = new URLSearchParams(location.hash.slice(1));
+    const k = (h.get('key') || '').trim();
+    if (!k || k === cfg.key) return false;
+    cfg.key = k;
+    saveCfg();
+    history.replaceState(null, '', location.pathname + location.search);
+    return true;
+  } catch (e) { return false; }
+}
+applySetupLink();
+/* the link can also arrive while the app is already open — a hash-only change
+   doesn't reload the page, so wire it up and refresh what depends on the key */
+addEventListener('hashchange', () => {
+  if (!applySetupLink()) return;
+  bootBadge();
+  itemsLive = true;
+  loadMemory(true); fetchItems(); fetchMoney();
+});
+
+/* ask the browser to keep our storage through reboots and cleanups */
+try { navigator.storage?.persist?.(); } catch (e) {}
+
+/* ── LOCK SCREEN — the door AND the setup: Nathan's server checks the code
+      and swaps it for the access key, so a brand-new phone needs only the
+      code. No key ever ships inside this public page. ── */
+const lockEl = document.getElementById('lock');
+let lockBuf = '', lockBusy = false;
+function paintLock(){
+  [...document.querySelectorAll('#lockDots i')].forEach((d, i) => d.classList.toggle('on', i < lockBuf.length));
+}
+
+/* wrong-code cooldown: every 3rd miss locks tries for 5 → 15 → 30 → 60 min.
+   The server enforces it (a browser can't clear that); this local copy only
+   paints the countdown and survives reloads via localStorage. */
+const LOCK_LS = 'nathan.lock.v1';
+let lockState = {fails: 0, until: 0};
+try { lockState = Object.assign(lockState, JSON.parse(localStorage.getItem(LOCK_LS) || '{}')); } catch (e) {}
+function saveLockState(){ try { localStorage.setItem(LOCK_LS, JSON.stringify(lockState)); } catch (e) {} }
+let coolTimer = null;
+const lockSub = msg => { lockEl.querySelector('.sub').textContent = msg; };
+function paintCooldown(){
+  const left = lockState.until - Date.now();
+  if (left <= 0){
+    clearInterval(coolTimer); coolTimer = null;
+    lockEl.classList.remove('cool');
+    lockSub('Enter your code');
+    return;
+  }
+  lockEl.classList.add('cool');
+  const m = Math.floor(left / 60000);
+  const s = Math.floor((left % 60000) / 1000);
+  lockSub('Too many tries — wait ' + m + ':' + String(s).padStart(2, '0'));
+}
+function startCooldown(){
+  paintCooldown();
+  if (lockState.until > Date.now() && !coolTimer) coolTimer = setInterval(paintCooldown, 1000);
+}
+
+async function lockKey(k){
+  if (lockBusy || lockState.until > Date.now()) return;
+  if (k === 'del'){ lockBuf = lockBuf.slice(0, -1); paintLock(); return; }
+  if (!/^\d$/.test(k) || lockBuf.length >= 4) return;
+  lockBuf += k; paintLock();
+  if (lockBuf.length < 4) return;
+  lockBusy = true;
+  const dots = document.getElementById('lockDots');
+  let data = null;
+  try {
+    const res = await fetch(memoryEndpoint(), {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({action: 'unlock', pin: lockBuf}),
+    });
+    data = await res.json().catch(() => null);
+  } catch (e) { /* offline / server unreachable */ }
+  if (!data){
+    lockSub("Can't reach Nathan — check your internet");
+    dots.classList.add('bad');
+    setTimeout(() => { dots.classList.remove('bad'); lockBuf = ''; paintLock(); lockBusy = false; }, 600);
+    return;
+  }
+  if (data.ok && data.key){
+    const hadKey = cfg.key === data.key;
+    cfg.key = data.key; saveCfg();
+    lockState = {fails: 0, until: 0}; saveLockState();
+    rememberUnlock();
+    if (!hadKey){
+      /* first unlock on this device (or a rotated key) — light everything up */
+      bootBadge();
+      itemsLive = true;
+      loadMemory(true); fetchItems(); fetchMoney();
+      if (transEl.textContent.indexOf('sample replies') !== -1){
+        transEl.textContent = 'Connected — ask me anything.';
+      }
+    }
+    /* dots ripple green, then zoom through into the app */
+    dots.classList.add('ok');
+    lockEl.classList.add('bye');
+    setTimeout(() => {
+      lockEl.classList.add('off');
+      lockEl.classList.remove('bye');
+      dots.classList.remove('ok');
+      lockBuf = ''; paintLock(); lockBusy = false;
+    }, 1050);
+  } else {
+    lockState.fails = data.fails ?? (lockState.fails + 1);
+    lockState.until = data.until ? (Date.parse(data.until) || 0) : 0;
+    saveLockState();
+    dots.classList.add('bad');
+    setTimeout(() => {
+      dots.classList.remove('bad');
+      lockBuf = ''; paintLock(); lockBusy = false;
+      startCooldown();
+      if (!(lockState.until > Date.now()) && data.left){
+        lockSub('Wrong code — ' + data.left + (data.left === 1 ? ' try' : ' tries') + ' before a timeout');
+      }
+    }, 500);
+  }
+}
+const lockPadEl = document.getElementById('lockPad');
+lockPadEl.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b || b.dataset.k === 'none') return;
+  lockKey(b.dataset.k === 'del' ? 'del' : b.textContent.trim());
+});
+/* tactile press glow on touch as well as mouse */
+lockPadEl.addEventListener('pointerdown', e => {
+  const b = e.target.closest('button');
+  if (b && b.dataset.k !== 'none') b.classList.add('hit');
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
+  addEventListener(ev, () => lockPadEl.querySelectorAll('.hit').forEach(b => b.classList.remove('hit'))));
+addEventListener('keydown', e => {
+  if (lockEl.classList.contains('off')) return;
+  if (/^\d$/.test(e.key)) lockKey(e.key);
+  if (e.key === 'Backspace') lockKey('del');
+});
+/* The code is for OPENING Nathan, not for every refresh. A refresh is
+   detected by a heartbeat: while the app is open it stamps aliveAt every
+   few seconds, so on load "unlocked this session AND alive seconds ago"
+   means reload → skip the lock. Closing the browser or shutting down
+   leaves a stale heartbeat → the code is asked again. */
+function rememberUnlock(){
+  try { sessionStorage.setItem('nathan.unlocked', '1'); } catch (e) {}
+}
+function isRefresh(){
+  try {
+    if (sessionStorage.getItem('nathan.unlocked') !== '1') return false;
+    const alive = Number(localStorage.getItem('nathan.aliveAt') || 0);
+    return alive > 0 && Date.now() - alive < 30000;
+  } catch (e) { return false; }
+}
+
+/* the lock is the door — on unless this device opted out in Settings */
+if (cfg.lockOff) lockEl.classList.add('off');
+else if (isRefresh()) lockEl.classList.add('off');
+else startCooldown();                       // resume a running cooldown after reload
+
+/* start the heartbeat only after the refresh check has read the old value */
+const beat = () => { try { localStorage.setItem('nathan.aliveAt', String(Date.now())); } catch (e) {} };
+beat();
+setInterval(beat, 5000);
+addEventListener('pagehide', beat);
+
+const connected = () => Boolean(cfg.endpoint && cfg.key);
+
+/* ══════════════════════════════════════════════════════════════
+   MEMORY  —  lives in Supabase, reachable without an Anthropic key
+   ══════════════════════════════════════════════════════════════ */
+let memoryCache = null;
+
+async function memoryCall(payload){
+  if (!cfg.key) throw new Error('no access key');
+  const res = await fetch(memoryEndpoint(), {
+    method: 'POST',
+    headers: {'content-type':'application/json', 'x-nathan-key': cfg.key},
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || data.error || ('HTTP ' + res.status));
+  return data;
+}
+
+async function loadMemory(force){
+  if (memoryCache && !force) return memoryCache;
+  try {
+    const {files} = await memoryCall({action:'list'});
+    memoryCache = (files || []).map(f => '### ' + f.path + '\n' + f.content).join('\n\n');
+    const row = document.getElementById('sysMem');
+    if (row) row.querySelector('b').textContent = (files || []).length + ' files';
+  } catch (e) {
+    memoryCache = '';
+    const row = document.getElementById('sysMem');
+    if (row) row.querySelector('b').textContent = 'no key';
+  }
+  return memoryCache;
+}
+
+const pillEl = document.querySelector('.pill');
+function setConnBadge(mode, label){
+  pillEl.className = 'pill' + (mode ? ' ' + mode : '');
+  pillEl.lastChild.textContent = ' ' + label;
+  const sysBrain = document.getElementById('sysBrain');
+  if (sysBrain){
+    const colour = mode === 'demo' ? '#fbbf24' : mode === 'err' ? '#f472b6' : '#34d399';
+    sysBrain.querySelector('.sd').style.background = colour;
+    sysBrain.querySelector('.sd').style.boxShadow = '0 0 8px ' + colour;
+    sysBrain.querySelector('b').textContent = mode === 'demo' ? 'demo mode' : mode === 'err' ? 'error' : 'connected';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CHAT
+   ══════════════════════════════════════════════════════════════ */
+let replyIdx = 0, busy = false;
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+/* minimal, safe markdown: escape first, then allow **bold**, *italic*, `code`, line breaks */
+function fmt(s){
+  return escapeHtml(s)
+    .replace(/`([^`]+)`/g, '<code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,.07);padding:1px 5px;border-radius:4px">$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>')
+    .replace(/\n/g, '<br>');
+}
+
+function bubble(who, html){
+  const m = document.createElement('div');
+  m.className = 'msg ' + who;
+  m.innerHTML =
+    '<div class="mav">' + (who === 'nat' ? 'N' : 'NJ') + '</div>' +
+    '<div class="bub">' + html + '</div>';
+  threadEl.appendChild(m);
+  threadEl.scrollTop = threadEl.scrollHeight;
+  return m;
+}
+
+/* The brain streams NDJSON — tokens render the moment Claude produces them.
+   Falls back to a single JSON blob if an older deployment answers. */
+async function askBrain(text, onToken, img){
+  const res = await fetch(cfg.endpoint, {
+    method: 'POST',
+    headers: {'content-type':'application/json', 'x-nathan-key': cfg.key},
+    body: JSON.stringify({
+      message: text, session: 'web', speed: cfg.speed,
+      ...(img ? {image: {media_type: img.media_type, data: img.data}} : {}),
+    }),
+  });
+  if (!res.ok){
+    let data = {};
+    try { data = await res.json(); } catch (e) {}
+    const msg = data.detail || data.error || ('HTTP ' + res.status);
+    const err = new Error(msg); err.kind = data.error; throw err;
+  }
+  if (!(res.headers.get('content-type') || '').includes('ndjson')) return await res.json();
+
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '', shown = '', out = null;
+  while (true){
+    const {done, value} = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, {stream: true});
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines){
+      if (!line.trim()) continue;
+      let d;
+      try { d = JSON.parse(line); } catch (e) { continue; }
+      if (d.type === 'token'){ shown += d.text; if (onToken) onToken(shown); }
+      else if (d.type === 'reset'){ shown = ''; }
+      else if (d.type === 'done'){ out = d; }
+      else if (d.type === 'error'){
+        const err = new Error(d.detail || 'upstream error'); err.kind = d.error; throw err;
+      }
+    }
+  }
+  return out || {reply: shown.trim(), saved: [], board: 0};
+}
+
+async function send(text){
+  if (busy) return;
+  text = (text || inputEl.value).trim();
+  const img = pendingImg;
+  if (!text && !img) return;
+
+  app.classList.add('chatting');
+  bubble('me', (img ? '<img class="snap" src="' + img.url + '">' : '') + escapeHtml(text));
+  inputEl.value = '';
+  setPending(null);
+  sendBtn.classList.remove('ready');
+
+  busy = true;
+  setState('thinking');
+  const wait = bubble('nat', '<div class="typing"><i></i><i></i><i></i></div>');
+  const bub = wait.querySelector('.bub');
+
+  try {
+    if (!connected()){
+      /* demo mode — no key configured yet */
+      await new Promise(r => setTimeout(r, 900 + Math.random() * 600));
+      const reply = REPLIES[replyIdx++ % REPLIES.length];
+      bub.innerHTML = fmt(reply) +
+        '<div class="saved-chip" style="color:var(--warn);border-color:rgba(251,191,36,.28);background:rgba(251,191,36,.07)">demo reply — add your key in settings</div>';
+      speak(reply);
+    } else {
+      let first = true;
+      const slow = setTimeout(() => {
+        if (!first) return;
+        bub.innerHTML = '<div class="typing"><i></i><i></i><i></i></div>' +
+          '<div class="saved-chip" style="color:var(--txt-3);border-color:var(--line);background:transparent">' +
+          'still thinking — long answers and memory saves take a moment</div>';
+      }, 5000);
+
+      const onToken = partial => {
+        if (first){ first = false; clearTimeout(slow); setState('speaking'); }
+        bub.innerHTML = fmt(partial);
+        threadEl.scrollTop = threadEl.scrollHeight;
+      };
+      const data = await askBrain(text, onToken, img);
+      clearTimeout(slow);
+      bub.innerHTML = fmt(data.reply || '(no reply)');
+      if (data.saved && data.saved.length){
+        bub.insertAdjacentHTML('beforeend',
+          '<div class="saved-chip">✓ remembered ' + escapeHtml(data.saved.join(', ')) + '</div>');
+      }
+      if (data.board){
+        bub.insertAdjacentHTML('beforeend', '<div class="saved-chip">✓ board updated</div>');
+        fetchItems();
+      }
+      if (data.money){
+        bub.insertAdjacentHTML('beforeend', '<div class="saved-chip">✓ finances updated</div>');
+        fetchMoney();
+      }
+      setConnBadge('', cfg.speed === 'fast' ? 'Online · Fast' : 'Online');
+      speak(data.reply);
+    }
+    setState('speaking');
+    setTimeout(() => setState('ready'), 2000);
+  } catch (err){
+    bub.classList.add('err');
+    let hint = '';
+    if (err.kind === 'setup')             hint = ' Open settings for the setup checklist.';
+    else if (err.kind === 'unauthorized') hint = ' Check the access key in settings.';
+    bub.innerHTML = fmt('Couldn\'t reach my brain — ' + err.message + '.' + hint);
+    setConnBadge('err', 'Brain offline');
+    setState('ready');
+  } finally {
+    busy = false;
+    threadEl.scrollTop = threadEl.scrollHeight;
+  }
+}
+
+sendBtn.addEventListener('click', () => send());
+inputEl.addEventListener('input', () => sendBtn.classList.toggle('ready', inputEl.value.trim().length > 0));
+inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+
+document.getElementById('chips').addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (c) send(c.textContent);
+});
+
+/* ══════════════════════════════════════════════════════════════
+   VOICE IN  —  Web Speech API
+   ══════════════════════════════════════════════════════════════ */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, micOn = false, heard = '', micCancelled = false;
+
+function buildRecogniser(){
+  if (!SR) return null;
+  const r = new SR();
+  r.lang = cfg.lang || 'en-CA';
+  r.continuous = false;
+  r.interimResults = true;
+  r.maxAlternatives = 1;
+
+  r.onstart = () => { heard = ''; micCancelled = false; micOn = true; micBtn.classList.add('on'); setState('listening'); };
+
+  r.onresult = e => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++){
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t; else interim += t;
+    }
+    if (final) heard += final;
+    const shown = (heard + interim).trim();
+    if (shown) setState('listening', shown);
+    inputEl.value = shown;
+    sendBtn.classList.toggle('ready', shown.length > 0);
+  };
+
+  r.onerror = e => {
+    micOn = false; micBtn.classList.remove('on');
+    if (e.error === 'no-speech'){ setState('ready', 'Didn\'t catch that — try again.'); return; }
+    if (e.error === 'aborted'){ setState('ready'); return; }
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      const overFile = location.protocol === 'file:';
+      setState('ready', overFile
+        ? 'Microphone is blocked on local files — see settings.'
+        : 'Microphone permission denied — allow it in your browser.');
+      if (overFile) bubbleVoiceHelp();
+      return;
+    }
+    setState('ready', 'Voice error: ' + e.error);
+  };
+
+  r.onend = () => {
+    micOn = false; micBtn.classList.remove('on');
+    /* only auto-send what was actually dictated this session — never a typed
+       draft sitting in the input, and never after the mic was clicked to cancel */
+    const said = heard.trim();
+    if (said && cfg.auto && !micCancelled){ setState('ready'); send(said); }
+    else if (!said) setState('ready');
+    else setState('ready', said);
+  };
+
+  return r;
+}
+
+let voiceHelpShown = false;
+function bubbleVoiceHelp(){
+  if (voiceHelpShown) return;
+  voiceHelpShown = true;
+  app.classList.add('chatting');
+  bubble('nat', fmt(
+    "Chrome won't give microphone access to a page opened straight from your hard drive " +
+    "(a `file:///` address). The voice button works as soon as the page is served over " +
+    "**http://localhost** or **https://**.\n\n" +
+    "Quickest fix: drag this folder onto **app.netlify.com/drop** — you get an https link in " +
+    "about ten seconds, and it works from your phone too."));
+}
+
+micBtn.addEventListener('click', () => {
+  if (!SR){
+    app.classList.add('chatting');
+    bubble('nat', fmt("This browser doesn't support speech recognition. Chrome or Edge on Windows will work."));
+    return;
+  }
+  if (micOn){ micCancelled = true; try { rec && rec.abort(); } catch (e) {} return; }
+  stopSpeaking();
+  rec = buildRecogniser();
+  try { rec.start(); }
+  catch (e) { setState('ready', 'Could not start the microphone.'); }
+});
+
+/* ══════════════════════════════════════════════════════════════
+   VOICE OUT
+   ══════════════════════════════════════════════════════════════ */
+/* Rank voices by how natural they sound. Edge's "Online (Natural)" neural
+   voices are near-studio; then other neural/premium; then Google's network
+   voices; plain robotic system voices last. */
+function voiceScore(v){
+  if (/Online.*Natural|\(Natural\)/i.test(v.name)) return 4;
+  if (/Natural|Neural|Premium|Enhanced/i.test(v.name)) return 3;
+  if (/Google/i.test(v.name)) return 2;
+  return 1;
+}
+/* all voices, best first: language matches on top, then by quality */
+function voiceList(){
+  const want = (cfg.lang || 'en-CA').slice(0, 2).toLowerCase();
+  return speechSynthesis.getVoices().slice().sort((a, b) => {
+    const am = a.lang.toLowerCase().startsWith(want), bm = b.lang.toLowerCase().startsWith(want);
+    if (am !== bm) return am ? -1 : 1;
+    return voiceScore(b) - voiceScore(a);
+  });
+}
+function pickVoice(){
+  const vs = voiceList();
+  if (cfg.voice){
+    const chosen = vs.find(v => v.name === cfg.voice);
+    if (chosen) return chosen;              // his explicit pick, if this browser has it
+  }
+  return vs[0] || null;                     // otherwise: the most natural one available
+}
+function stopSpeaking(){ try { speechSynthesis.cancel(); } catch (e) {} }
+function speak(text){
+  if (!cfg.speak || !text || !('speechSynthesis' in window)) return;
+  stopSpeaking();
+  const u = new SpeechSynthesisUtterance(String(text).replace(/[*`#_]/g, ''));
+  const v = pickVoice();
+  if (v){ u.voice = v; u.lang = v.lang; }
+  else u.lang = cfg.lang || 'en-CA';
+  u.rate = cfg.rate || 1.02;
+  u.pitch = cfg.pitch || 1.0;
+  speechSynthesis.speak(u);
+}
+if ('speechSynthesis' in window){
+  speechSynthesis.onvoiceschanged = () => {
+    if (modal.classList.contains('open')) paintVoices();   // list often arrives late
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SETTINGS PANEL
+   ══════════════════════════════════════════════════════════════ */
+const modal = document.getElementById('modal');
+const fSpeed = document.getElementById('fSpeed');
+const fEndpoint = document.getElementById('fEndpoint');
+const fKey = document.getElementById('fKey');
+const fLang = document.getElementById('fLang');
+const fVoice = document.getElementById('fVoice');
+const fRate = document.getElementById('fRate');
+const fPitch = document.getElementById('fPitch');
+const fSpeak = document.getElementById('fSpeak');
+const fAuto = document.getElementById('fAuto');
+
+/* fill the voice dropdown, best voices first, quality-starred */
+function paintVoices(){
+  const vs = voiceList();
+  const stars = s => s >= 4 ? ' ★★' : s === 3 ? ' ★' : '';
+  fVoice.innerHTML =
+    '<option value="">Auto — most natural available</option>' +
+    vs.map(v => '<option value="' + escapeHtml(v.name) + '"' + (v.name === cfg.voice ? ' selected' : '') + '>' +
+      escapeHtml(v.name) + ' · ' + escapeHtml(v.lang) + stars(voiceScore(v)) + '</option>').join('');
+  if (!cfg.voice) fVoice.value = '';
+}
+
+function paintSliders(){
+  document.getElementById('rateVal').textContent = Number(fRate.value).toFixed(2) + '×';
+  document.getElementById('pitchVal').textContent = Number(fPitch.value).toFixed(2);
+}
+fRate.addEventListener('input', paintSliders);
+fPitch.addEventListener('input', paintSliders);
+
+/* hear the dropdown's current pick before saving anything */
+document.getElementById('btnPreview').addEventListener('click', () => {
+  stopSpeaking();
+  const u = new SpeechSynthesisUtterance(
+    "Hey Nataniel — this is how I'd sound. Two things need you today; the rest can wait.");
+  const v = voiceList().find(x => x.name === fVoice.value) || pickVoice();
+  if (v){ u.voice = v; u.lang = v.lang; }
+  u.rate = parseFloat(fRate.value) || 1.02;
+  u.pitch = parseFloat(fPitch.value) || 1.0;
+  speechSynthesis.speak(u);
+});
+
+let draftSpeed = cfg.speed;
+
+function paintSpeed(){
+  [...fSpeed.children].forEach(b => b.classList.toggle('on', b.dataset.speed === draftSpeed));
+  document.getElementById('speedHelp').innerHTML = draftSpeed === 'fast'
+    ? 'Claude Haiku — near-instant replies at about a quarter of the cost. Great for everyday questions and logging things.'
+    : 'Claude Sonnet — deeper thinking for drafting, planning and the harder stuff. About a cent a message.';
+  document.getElementById('setupNote').innerHTML = setupNote();
+}
+
+function setupNote(){
+  const overFile = location.protocol === 'file:';
+  const tick = ok => ok ? '✓' : '○';
+  return '<b>Setup</b><br>' +
+    tick(Boolean(fKey.value.trim())) + ' Connected — your lock code fills this in automatically<br>' +
+    '○ In Supabase → Edge Functions → Secrets, add <code>ANTHROPIC_API_KEY</code> and <code>NATHAN_ACCESS_KEY</code><br>' +
+    tick(!overFile) + ' Page served over https or localhost' +
+    (overFile ? ' — required for the microphone' : '');
+}
+
+fSpeed.addEventListener('click', e => {
+  const b = e.target.closest('button[data-speed]');
+  if (!b) return;
+  draftSpeed = b.dataset.speed;
+  paintSpeed();
+});
+
+function openSettings(){
+  draftSpeed = cfg.speed;
+  fEndpoint.value = cfg.endpoint;
+  fKey.value = cfg.key;
+  fLang.value = cfg.lang;
+  fRate.value = cfg.rate || 1.02;
+  fPitch.value = cfg.pitch || 1.0;
+  fSpeak.checked = cfg.speak;
+  fAuto.checked = cfg.auto;
+  paintVoices();
+  paintSliders();
+  paintSpeed();
+  modal.classList.add('open');
+}
+function closeSettings(){ modal.classList.remove('open'); }
+
+document.querySelector('.iconbtn[title="Settings"]').addEventListener('click', openSettings);
+document.getElementById('btnCancel').addEventListener('click', closeSettings);
+modal.addEventListener('click', e => { if (e.target === modal) closeSettings(); });
+document.getElementById('btnSave').addEventListener('click', async () => {
+  const pin = document.getElementById('fPin').value.trim();
+  if (pin === 'off') cfg.lockOff = true;
+  else if (/^\d{4}$/.test(pin)){
+    cfg.lockOff = false;
+    /* the code lives with Nathan now — changing it here changes it everywhere */
+    try { await memoryCall({action: 'set_pin', pin}); }
+    catch (e) { alert('Could not change the code: ' + (e.message || e)); }
+  }
+  document.getElementById('fPin').value = '';
+  cfg.speed = draftSpeed;
+  cfg.endpoint = fEndpoint.value.trim() || DEFAULT_ENDPOINT;
+  cfg.key = fKey.value.trim();
+  cfg.lang = fLang.value.trim() || 'en-CA';
+  cfg.voice = fVoice.value;
+  cfg.rate = parseFloat(fRate.value) || 1.02;
+  cfg.pitch = parseFloat(fPitch.value) || 1.0;
+  cfg.speak = fSpeak.checked;
+  cfg.auto = fAuto.checked;
+  saveCfg();
+  memoryCache = null;
+  bootBadge();
+  itemsLive = Boolean(cfg.key);
+  fetchItems();
+  fetchMoney();
+  if (cfg.key) loadMemory(true);
+  closeSettings();
+});
+
+/* shortcuts */
+addEventListener('keydown', e => {
+  if (!lockEl.classList.contains('off')) return;   // locked: keypad only
+  if (e.key === 'Escape'){ closeSettings(); closeEv(); closePage(); stopSpeaking(); inputEl.blur(); return; }
+  if (modal.classList.contains('open') || evModal.classList.contains('open') || app.dataset.page) return;
+  if (e.key === '/' && document.activeElement !== inputEl){ e.preventDefault(); inputEl.focus(); }
+  if (e.code === 'Space' && document.activeElement !== inputEl){ e.preventDefault(); micBtn.click(); }
+});
+
+/* ══════════════════════════════════════════════════════════════
+   RENDER PANELS
+   ══════════════════════════════════════════════════════════════ */
+const CHECK = '<svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>';
+/* everything below goes through innerHTML — escape every data field now so the
+   day these panels are wired to live sources, nothing can inject markup */
+const esc = escapeHtml;
+
+/* ── the live board: filled from Supabase when an access key is set;
+      the DEMO_* sample constants above are the no-key fallback ── */
+let items = [], itemsLive = Boolean(cfg.key);
+
+const PAIRS = [['#3ce0f0','#a78bfa'],['#a78bfa','#f472b6'],['#fbbf24','#f472b6'],['#3ce0f0','#34d399'],['#f472b6','#fbbf24'],['#34d399','#3ce0f0']];
+function hue(s){ let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+const pairFor = s => PAIRS[hue(s) % PAIRS.length];
+
+function relAge(ts){
+  const m = Math.max(1, Math.round((Date.now() - new Date(ts)) / 60000));
+  if (m < 60) return m + 'm';
+  if (m < 1440) return Math.round(m / 60) + 'h';
+  return Math.round(m / 1440) + 'd';
+}
+function dayLabel(ts){
+  const d = new Date(ts), n = new Date();
+  const diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) -
+                           new Date(n.getFullYear(), n.getMonth(), n.getDate())) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff > 1 && diff < 7) return d.toLocaleDateString('en-CA', {weekday:'long'});
+  return d.toLocaleDateString('en-CA', {month:'short', day:'numeric'});
+}
+const timeLabel = ts => new Date(ts).toLocaleTimeString('en-CA', {hour:'2-digit', minute:'2-digit', hour12:false});
+const EMPTY = msg => '<div class="empty">' + msg + '</div>';
+
+/* everything with a date is a plan — events and dated tasks feed the calendar */
+const plans = () => items
+  .filter(i => i.when_at && i.status === 'open' && (i.kind === 'event' || i.kind === 'task'))
+  .sort((a, b) => new Date(a.when_at) - new Date(b.when_at));
+
+async function fetchItems(){
+  if (!cfg.key){ itemsLive = false; renderPanels(); return; }
+  try {
+    const data = await memoryCall({action:'items'});
+    items = data.items || [];
+    itemsLive = true;
+  } catch (e) { /* keep whatever we have */ }
+  renderPanels();
+}
+
+function renderPanels(){
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+
+  const tasks = itemsLive
+    ? items.filter(i => i.kind === 'task' && i.status !== 'done').map(i => ({
+        id: i.id, t: i.title, m: i.area || '',
+        tag: i.tag || '', tagText: i.tag_text || (i.when_at ? dayLabel(i.when_at) : ''),
+        done: i.status === 'done'}))
+    : TASKS;
+  document.getElementById('tasks').innerHTML = tasks.length ? tasks.map(t => `
+    <div class="item${t.done ? ' done' : ''}"${t.id ? ` data-id="${t.id}"` : ''}>
+      <div class="tick">${CHECK}</div>
+      <div class="ibody">
+        <div class="itxt">${esc(t.t)}</div>
+        <div class="imeta">${t.tagText ? `<span class="tag ${esc(t.tag)}">${esc(t.tagText)}</span>` : ''}<span>${esc(t.m)}</span></div>
+      </div>
+    </div>`).join('') : EMPTY('Nothing on the list — tell Nathan what\'s on your plate.');
+
+  const waiting = itemsLive
+    ? items.filter(i => i.kind === 'waiting' && i.status === 'open').map(i => ({
+        n: i.title, d: i.detail || '', w: relAge(i.created_at), c: pairFor(i.title)[0]}))
+    : WAITING;
+  const upcoming = itemsLive
+    ? plans().filter(i => new Date(i.when_at) >= t0).slice(0, 5).map(i => ({
+        key: 'i' + i.id,
+        n: i.title, d: dayLabel(i.when_at),
+        w: timeLabel(i.when_at) + (i.end_at ? '–' + timeLabel(i.end_at) : ''),
+        c: i.kind === 'task' ? '#fbbf24' : '#3ce0f0'}))
+    : UPCOMING;
+  document.getElementById('waiting').innerHTML  = waiting.length  ? rows(waiting)  : EMPTY('Waiting on no one right now.');
+  document.getElementById('upcoming').innerHTML = upcoming.length ? rows(upcoming) : EMPTY('No plans yet — tell Nathan and they\'ll land here and on the calendar.');
+
+  const projects = itemsLive
+    ? items.filter(i => i.kind === 'project' && i.status === 'open').map(i => ({
+        n: i.title, s: i.detail || '', p: i.percent ?? 0, c: pairFor(i.title)}))
+    : PROJECTS;
+  document.getElementById('projects').innerHTML = projects.length ? projects.map(p => `
+    <div class="proj">
+      <div class="ptop"><div class="pname">${esc(p.n)}</div><div class="ppct">${esc(p.p)}%</div></div>
+      <div class="psub">${esc(p.s)}</div>
+      <div class="bar"><i data-p="${esc(p.p)}" style="background:linear-gradient(90deg,${esc(p.c[0])},${esc(p.c[1])})"></i></div>
+    </div>`).join('') : EMPTY('No active projects tracked.');
+
+  setTimeout(() => {
+    document.querySelectorAll('.bar i').forEach(b => b.style.width = b.dataset.p + '%');
+  }, 60);
+
+  renderCalendar();
+  renderFinCard();          // the work-pay line depends on board shifts
+}
+
+const rows = list => list.map(w => `
+  <div class="wrow${w.key ? ' clickable' : ''}"${w.key ? ` data-key="${esc(w.key)}"` : ''}>
+    <div class="av" style="background:linear-gradient(135deg,${esc(w.c)},${esc(w.c)}88)">${esc(w.n.slice(0,2).toUpperCase())}</div>
+    <div class="wtxt"><div class="n">${esc(w.n)}</div><div class="d">${esc(w.d)}</div></div>
+    <div class="wwhen">${esc(w.w)}</div>
+  </div>`).join('');
+
+document.getElementById('tasks').addEventListener('click', e => {
+  const tick = e.target.closest('.tick');
+  if (!tick) return;
+  const el = tick.closest('.item');
+  el.classList.toggle('done');
+  const id = Number(el.dataset.id);
+  const done = el.classList.contains('done');
+  if (itemsLive && id){
+    const it = items.find(i => i.id === id);
+    if (it) it.status = done ? 'done' : 'open';
+    memoryCall({action:'item_update', item:{id, status: done ? 'done' : 'open'}})
+      .catch(() => { el.classList.toggle('done'); if (it) it.status = done ? 'open' : 'done'; });
+  }
+  /* the check celebrates for a beat, then the objective leaves the briefing —
+     tapping again within that beat undoes it */
+  if (done) setTimeout(() => {
+    if (!el.isConnected || !el.classList.contains('done')) return;
+    el.classList.add('gone');
+    setTimeout(renderPanels, 260);
+  }, 900);
+});
+
+document.getElementById('btnRefresh').addEventListener('click', fetchItems);
+
+document.getElementById('systems').innerHTML = SYSTEMS.map(s => `
+  <div class="srow"${s.id ? ' id="' + esc(s.id) + '"' : ''}><span class="sd" style="background:${esc(s.c)};box-shadow:0 0 8px ${esc(s.c)}"></span>${esc(s.n)}<b>${esc(s.v)}</b></div>`).join('');
+
+/* ══════════════════════════════════════════════════════════════
+   CALENDAR  —  every plan with a date, updated as Nathan learns them
+   ══════════════════════════════════════════════════════════════ */
+let calY = null, calM = null, calSel = null;
+
+const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+/* ── the page router: '' = chat, or schedule / finances / habits / projects ── */
+function showPage(name){
+  if (name) app.dataset.page = name;
+  else delete app.dataset.page;
+  document.querySelectorAll('#hnav button').forEach(b =>
+    b.classList.toggle('on', (b.dataset.page || '') === (name || '')));
+  document.querySelectorAll('#mnav button').forEach(b =>
+    b.classList.toggle('on', name
+      ? b.dataset.goto === name
+      : b.dataset.mview === (app.dataset.view || 'chat')));
+  if (name === 'schedule') openCalendar();
+  if (name === 'finances') openFin();
+  if (name === 'habits') openHab();
+  if (name === 'projects') openProj();
+}
+const closePage = () => showPage('');
+
+function openCalendar(){
+  const n = new Date();
+  if (calY == null){ calY = n.getFullYear(); calM = n.getMonth(); calSel = new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  renderCalendar();
+  if (cfg.key){ fetchItems(); fetchMoney(); }   // freshest plans every open
+}
+
+function renderCalendar(){
+  if (calY == null) return;             // not opened yet
+  const first = new Date(calY, calM, 1);
+  document.getElementById('calTitle').textContent = first.toLocaleDateString('en-CA', {month:'long', year:'numeric'});
+  const start = new Date(calY, calM, 1 - first.getDay());
+  const today = new Date();
+  const all = calFeed();
+
+  let html = ['S','M','T','W','T','F','S'].map(d => `<div class="cal-dow">${d}</div>`).join('');
+  for (let i = 0; i < 42; i++){
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const evs = all.filter(p => sameDay(new Date(p.when), d));
+    html += `<div class="cal-cell${d.getMonth() !== calM ? ' dim' : ''}${sameDay(d, today) ? ' today' : ''}${calSel && sameDay(d, calSel) ? ' sel' : ''}"
+      data-d="${d.getFullYear()}-${d.getMonth()}-${d.getDate()}">
+      <span class="dnum">${d.getDate()}</span>` +
+      evs.slice(0, 2).map(e => `<span class="cal-ev${e.cls}">${esc(e.chip)}</span>`).join('') +
+      (evs.length > 2 ? `<span class="cal-more">+${evs.length - 2} more</span>` : '') +
+    `</div>`;
+  }
+  document.getElementById('calGrid').innerHTML = html;
+  renderCalDay();
+}
+
+/* plans + open bills, one stream for the calendar */
+const calIndex = {};                 // key → feed entry, for the tap-for-details notes
+function calFeed(){
+  const evs = plans().map(p => ({
+    key: 'i' + p.id,
+    when: p.when_at, cls: p.kind === 'task' ? ' task' : '',
+    chip: timeLabel(p.when_at) + ' ' + p.title,
+    time: timeLabel(p.when_at) + (p.end_at ? '–' + timeLabel(p.end_at) : ''),
+    title: p.title, sub: p.detail || '',
+  }));
+  const bills = moneyNow.filter(b => b.kind === 'bill' && b.status === 'open').map(b => ({
+    key: 'b' + b.id,
+    when: b.when_at, cls: ' bill',
+    chip: '$ ' + b.title,
+    time: timeLabel(b.when_at), title: b.title + ' — ' + cad(b.amount), sub: 'bill due',
+  }));
+  const feed = [...evs, ...bills].sort((a, b) => new Date(a.when) - new Date(b.when));
+  feed.forEach(f => calIndex[f.key] = f);
+  return feed;
+}
+
+function renderCalDay(){
+  const box = document.getElementById('calDay');
+  if (!calSel){ box.innerHTML = ''; return; }
+  const evs = calFeed().filter(p => sameDay(new Date(p.when), calSel));
+  const label = calSel.toLocaleDateString('en-CA', {weekday:'long', month:'long', day:'numeric'});
+  box.innerHTML = `<div class="cd-sub" style="padding:0 10px 4px">${esc(label)}</div>` + (evs.length
+    ? evs.map(e => `<div class="cd-row" data-key="${esc(e.key)}"><span class="cd-time">${esc(e.time)}</span><span class="cd-title">${esc(e.title)}</span>${e.sub ? `<span class="cd-sub">${esc(e.sub)}</span>` : ''}</div>`).join('')
+    : EMPTY(itemsLive ? 'Nothing planned this day.' : 'Nothing here yet — add your access key in settings to sync plans.'));
+}
+
+document.getElementById('calGrid').addEventListener('click', e => {
+  const cell = e.target.closest('.cal-cell');
+  if (!cell) return;
+  const [y, m, d] = cell.dataset.d.split('-').map(Number);
+  calSel = new Date(y, m, d);
+  calY = y; calM = m;
+  renderCalendar();
+});
+
+/* tap a plan → a short AI-written note about it, streamed in and cached */
+const aiNotes = {};
+async function aiDescribe(key, onToken){
+  const p = calIndex[key];
+  const dateStr = new Date(p.when).toLocaleDateString('en-CA', {weekday:'long', month:'long', day:'numeric'});
+  const prompt =
+    'Write EXACTLY ONE short, warm sentence about this calendar plan for a small popup — ' +
+    'when it runs in natural words, plus the single most useful thought. Max ~20 words. ' +
+    'No greeting, no emoji, do not use any tools — reply with only that one sentence.\n\n' +
+    'Plan: ' + p.title +
+    '\nDate: ' + dateStr +
+    '\nTime: ' + p.time +
+    (p.sub ? '\nContext: ' + p.sub : '') +
+    '\nToday: ' + new Date().toDateString();
+
+  /* one-off ask on the fast model: `messages` bypasses chat history,
+     its own session keeps his real one clean */
+  const res = await fetch(cfg.endpoint, {
+    method: 'POST',
+    headers: {'content-type':'application/json', 'x-nathan-key': cfg.key},
+    body: JSON.stringify({messages: [{role:'user', content: prompt}], session: 'cal-notes', speed: 'fast'}),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '', shown = '', out = '';
+  while (true){
+    const {done, value} = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, {stream: true});
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines){
+      if (!line.trim()) continue;
+      let d;
+      try { d = JSON.parse(line); } catch (e) { continue; }
+      if (d.type === 'token'){ shown += d.text; if (onToken) onToken(shown); }
+      else if (d.type === 'done') out = d.reply;
+      else if (d.type === 'error') throw new Error(d.detail || 'error');
+    }
+  }
+  return (out || shown).trim();
+}
+
+/* ── the event detail sheet: tap any plan, get the full picture ── */
+const evModal = document.getElementById('evModal');
+let evOpenKey = null;
+
+function openEventSheet(key){
+  const p = calIndex[key];
+  if (!p) return;
+  evOpenKey = key;
+  document.getElementById('evKind').textContent = key[0] === 'b' ? 'BILL DUE' : 'PLANNED';
+  document.getElementById('evTitle').textContent = p.title;
+  document.getElementById('evWhen').textContent =
+    new Date(p.when).toLocaleDateString('en-CA', {weekday:'long', month:'long', day:'numeric'}) + '  ·  ' + p.time;
+  const sub = document.getElementById('evSub');
+  sub.textContent = p.sub || '';
+  sub.style.display = p.sub ? '' : 'none';
+  const note = document.getElementById('evNote');
+  evModal.classList.add('open');
+  if (aiNotes[key]){ note.classList.remove('thinking'); note.textContent = aiNotes[key]; return; }
+  if (!connected()){ note.classList.remove('thinking'); note.textContent = 'Connect your key in settings to get Nathan\'s take.'; return; }
+  note.classList.add('thinking');
+  note.textContent = 'Thinking it through…';
+  const myKey = key;
+  aiDescribe(myKey, partial => {
+    if (evOpenKey !== myKey) return;
+    note.classList.remove('thinking');
+    note.textContent = partial;
+  }).then(text => {
+    aiNotes[myKey] = text;
+    if (evOpenKey === myKey){ note.classList.remove('thinking'); note.textContent = text; }
+  }).catch(err => {
+    if (evOpenKey === myKey){ note.classList.remove('thinking'); note.textContent = 'Couldn\'t get a note — ' + err.message; }
+  });
+}
+function closeEv(){ evModal.classList.remove('open'); evOpenKey = null; }
+evModal.addEventListener('click', e => { if (e.target === evModal) closeEv(); });
+
+document.getElementById('calDay').addEventListener('click', e => {
+  const row = e.target.closest('.cd-row');
+  if (row && row.dataset.key) openEventSheet(row.dataset.key);
+});
+document.getElementById('upcoming').addEventListener('click', e => {
+  const row = e.target.closest('.wrow');
+  if (row && row.dataset.key) openEventSheet(row.dataset.key);
+});
+document.getElementById('calPrev').addEventListener('click', () => { calM--; if (calM < 0){ calM = 11; calY--; } renderCalendar(); });
+document.getElementById('calNext').addEventListener('click', () => { calM++; if (calM > 11){ calM = 0; calY++; } renderCalendar(); });
+document.getElementById('calTodayBtn').addEventListener('click', () => {
+  const n = new Date();
+  calY = n.getFullYear(); calM = n.getMonth(); calSel = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  renderCalendar();
+});
+document.getElementById('btnCalTop').addEventListener('click', () => showPage('schedule'));
+document.getElementById('btnCal').addEventListener('click', () => showPage('schedule'));
+
+async function addPlanFromCal(){
+  const txtEl = document.getElementById('calText');
+  const title = txtEl.value.trim();
+  if (!title || !calSel) return;
+  if (!cfg.key){
+    txtEl.value = '';
+    txtEl.placeholder = 'Enter your code to connect Nathan first';
+    return;
+  }
+  const [h, m] = (document.getElementById('calTime').value || '09:00').split(':').map(Number);
+  const when = new Date(calSel.getFullYear(), calSel.getMonth(), calSel.getDate(), h, m);
+  let end = null;
+  const ev = document.getElementById('calTimeEnd').value;
+  if (ev){
+    const [eh, em] = ev.split(':').map(Number);
+    end = new Date(calSel.getFullYear(), calSel.getMonth(), calSel.getDate(), eh, em);
+    if (end <= when) end = null;               // nonsense range → just a start time
+  }
+  try {
+    await memoryCall({action:'item_add', item:{
+      kind:'event', title, when: when.toISOString(),
+      ...(end ? {end: end.toISOString()} : {}),
+    }});
+    txtEl.value = '';
+    txtEl.placeholder = 'Add a plan for this day…';
+    await fetchItems();
+  } catch (e) { txtEl.placeholder = 'Could not save — check your key'; }
+}
+document.getElementById('calAdd').addEventListener('click', addPlanFromCal);
+document.getElementById('calText').addEventListener('keydown', e => { if (e.key === 'Enter') addPlanFromCal(); });
+
+/* ══════════════════════════════════════════════════════════════
+   FINANCES  —  income, expenses, bills; bills flow to the calendar
+   ══════════════════════════════════════════════════════════════ */
+let moneyNow = [];              // this month + all open bills: card, calendar, Nathan's prompt
+let moneyView = [];             // whatever month the tab is showing
+let finY = null, finM = null;
+
+const cad = n => Number(n).toLocaleString('en-CA', {style:'currency', currency:'CAD'});
+
+/* ── work pay: deterministic paycheck math from board shifts ──
+   $16.90/h gross · 14-day periods ending Sundays · paid the Thursday after.
+   Anchor: the period ending Sun 2026-08-30 pays out Thu 2026-09-03.
+   KEEP IN SYNC with the same block in nathan-brain. */
+const WORK = {rate: 16.90, match: /shift/i};
+const WORK_ANCHOR_IX = Math.round(new Date(2026, 7, 30).getTime() / 86400000);
+function calcWorkPay(list){
+  const ix = dt => { const d = new Date(dt); return Math.round(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86400000); };
+  const buckets = {};
+  for (const i of list){
+    if (i.kind !== 'event' || !i.when_at || !WORK.match.test(i.title)) continue;
+    const d = ix(i.when_at);
+    const periodEnd = d + (((WORK_ANCHOR_IX - d) % 14) + 14) % 14;
+    const payday = periodEnd + 4;                       // the Thursday after the period
+    const b = buckets[payday] || (buckets[payday] = {hours: 0, shifts: 0, missing: 0});
+    b.shifts++;
+    const h = i.end_at ? (new Date(i.end_at) - new Date(i.when_at)) / 3600000 : 0;
+    if (h > 0 && h < 16) b.hours += h;
+    else b.missing++;
+  }
+  const today = ix(Date.now());
+  return Object.entries(buckets)
+    .map(([pd, b]) => ({paydayIx: Number(pd), payday: new Date(1970, 0, 1 + Number(pd)), ...b, gross: b.hours * WORK.rate}))
+    .filter(p => p.paydayIx >= today)
+    .sort((a, b) => a.paydayIx - b.paydayIx)
+    .slice(0, 2);
+}
+const sums = list => {
+  const done = list.filter(e => e.status === 'done');
+  const inc = done.filter(e => e.kind === 'income').reduce((t, e) => t + Number(e.amount), 0);
+  const out = done.filter(e => e.kind !== 'income').reduce((t, e) => t + Number(e.amount), 0);
+  return {inc, out};
+};
+
+async function fetchMoney(){
+  if (!cfg.key){ moneyNow = []; renderFinCard(); renderCalendar(); return; }
+  try {
+    const {entries} = await memoryCall({action:'money'});
+    moneyNow = entries || [];
+  } catch (e) { /* keep what we had */ }
+  renderFinCard();
+  renderCalendar();
+  if (app.dataset.page === 'finances') fetchMoneyView();
+}
+
+function renderFinCard(){
+  const live = Boolean(cfg.key);
+  const {inc, out} = sums(moneyNow);
+  document.getElementById('finIn').textContent  = live ? cad(inc) : '—';
+  document.getElementById('finOut').textContent = live ? cad(out) : '—';
+  const netEl = document.getElementById('finNet');
+  netEl.textContent = live ? cad(inc - out) : '—';
+  netEl.style.color = inc - out < 0 ? 'var(--pk)' : '';
+  const bills = moneyNow.filter(e => e.kind === 'bill' && e.status === 'open')
+    .sort((a, b) => new Date(a.when_at) - new Date(b.when_at));
+  document.getElementById('finNext').textContent = !live
+    ? 'Add your access key to start tracking'
+    : bills.length
+      ? 'Next bill: ' + bills[0].title + ' — ' + cad(bills[0].amount) + ' · ' + dayLabel(bills[0].when_at)
+      : 'This month · no bills coming';
+
+  const pays = live ? calcWorkPay(items) : [];
+  const workEl = document.getElementById('finWork');
+  workEl.style.display = pays.length ? '' : 'none';
+  if (pays.length){
+    workEl.textContent = 'Next pay ≈ ' + cad(pays[0].gross) + ' gross · ' + dayLabel(pays[0].payday) +
+      (pays[0].missing ? ' · ' + pays[0].missing + ' shift' + (pays[0].missing > 1 ? 's' : '') + ' missing end time' : '');
+  }
+}
+
+function openFin(){
+  const n = new Date();
+  if (finY == null){ finY = n.getFullYear(); finM = n.getMonth(); }
+  renderFin();
+  fetchMoneyView();
+  if (cfg.key) fetchMoney();
+}
+
+async function fetchMoneyView(){
+  if (!cfg.key){ moneyView = []; renderFin(); return; }
+  try {
+    const from = new Date(finY, finM, 1).toISOString();
+    const to = new Date(finY, finM + 1, 1).toISOString();
+    const {entries} = await memoryCall({action:'money', from, to});
+    moneyView = entries || [];
+  } catch (e) { moneyView = []; }
+  renderFin();
+}
+
+const entryRow = e => `
+  <div class="frow">
+    <span class="fd" style="background:${e.kind === 'income' ? 'var(--ok)' : 'var(--pk)'}"></span>
+    <div class="ft"><div class="n">${esc(e.title)}</div><div class="s">${esc(dayLabel(e.when_at))}${e.category ? ' · ' + esc(e.category) : ''}${e.kind === 'bill' ? ' · paid' : ''}</div></div>
+    <span class="fa ${e.kind === 'income' ? 'in' : 'out'}">${e.kind === 'income' ? '+' : '−'}${esc(cad(e.amount))}</span>
+  </div>`;
+const billRow = e => `
+  <div class="frow">
+    <span class="fd" style="background:var(--warn)"></span>
+    <div class="ft"><div class="n">${esc(e.title)}</div><div class="s">due ${esc(dayLabel(e.when_at))}${e.category ? ' · ' + esc(e.category) : ''}</div></div>
+    <span class="fa due">${esc(cad(e.amount))}</span>
+    <button class="pay" data-id="${e.id}">Paid</button>
+  </div>`;
+
+function renderFin(){
+  document.getElementById('finTitle').textContent =
+    new Date(finY, finM, 1).toLocaleDateString('en-CA', {month:'long', year:'numeric'});
+  const inMonth = moneyView.filter(e => {
+    const d = new Date(e.when_at);
+    return d.getFullYear() === finY && d.getMonth() === finM;
+  });
+  const {inc, out} = sums(inMonth);
+  document.getElementById('finSum').innerHTML =
+    `<div class="c"><div class="v" style="color:var(--ok)">${esc(cad(inc))}</div><div class="l">In</div></div>` +
+    `<div class="c"><div class="v" style="color:var(--pk)">${esc(cad(out))}</div><div class="l">Out</div></div>` +
+    `<div class="c"><div class="v"${inc - out < 0 ? ' style="color:var(--pk)"' : ''}>${esc(cad(inc - out))}</div><div class="l">Net</div></div>`;
+
+  const bills = moneyView.filter(e => e.kind === 'bill' && e.status === 'open')
+    .sort((a, b) => new Date(a.when_at) - new Date(b.when_at));
+  const rest = inMonth.filter(e => !(e.kind === 'bill' && e.status === 'open'));
+  const pays = cfg.key ? calcWorkPay(items) : [];
+  document.getElementById('finList').innerHTML =
+    (pays.length ? '<div class="fin-h">Work — $' + WORK.rate.toFixed(2) + '/h gross</div>' + pays.map(p => `
+      <div class="frow">
+        <span class="fd" style="background:var(--cy)"></span>
+        <div class="ft"><div class="n">Paycheck · ${esc(p.hours.toFixed(1))} h across ${esc(p.shifts)} shift${p.shifts > 1 ? 's' : ''}</div>
+        <div class="s">paid ${esc(dayLabel(p.payday))}${p.missing ? ' · ' + esc(p.missing) + ' shift' + (p.missing > 1 ? 's' : '') + ' missing an end time' : ''}</div></div>
+        <span class="fa in">≈ ${esc(cad(p.gross))}</span>
+      </div>`).join('') : '') +
+    (bills.length ? '<div class="fin-h">Bills due</div>' + bills.map(billRow).join('') : '') +
+    (rest.length ? '<div class="fin-h">This month</div>' + rest.map(entryRow).join('') : '') +
+    (!bills.length && !rest.length
+      ? EMPTY(cfg.key ? 'Nothing here — tell Nathan what you earned, spent, or owe.' : 'Enter your code to connect Nathan and start tracking.')
+      : '');
+}
+
+document.getElementById('finList').addEventListener('click', async e => {
+  const b = e.target.closest('.pay');
+  if (!b) return;
+  b.disabled = true;
+  try {
+    await memoryCall({action:'money_update', entry:{id: Number(b.dataset.id), status: 'done', when: new Date().toISOString()}});
+    await fetchMoney();
+    await fetchMoneyView();
+  } catch (err){ b.disabled = false; }
+});
+
+async function addMoneyFromFin(){
+  const amtEl = document.getElementById('finAmt'), txtEl = document.getElementById('finText');
+  const amount = parseFloat(amtEl.value), title = txtEl.value.trim();
+  if (!(amount >= 0) || !title) return;
+  if (!cfg.key){ txtEl.value = ''; txtEl.placeholder = 'Enter your code to connect Nathan first'; return; }
+  try {
+    await memoryCall({action:'money_add', entry:{kind: document.getElementById('finKind').value, title, amount}});
+    amtEl.value = ''; txtEl.value = ''; txtEl.placeholder = 'What was it?';
+    await fetchMoney();
+    await fetchMoneyView();
+  } catch (err){ txtEl.placeholder = 'Could not save — check your key'; }
+}
+document.getElementById('finAdd').addEventListener('click', addMoneyFromFin);
+document.getElementById('finText').addEventListener('keydown', e => { if (e.key === 'Enter') addMoneyFromFin(); });
+document.getElementById('finPrev').addEventListener('click', () => { finM--; if (finM < 0){ finM = 11; finY--; } renderFin(); fetchMoneyView(); });
+document.getElementById('finNext2').addEventListener('click', () => { finM++; if (finM > 11){ finM = 0; finY++; } renderFin(); fetchMoneyView(); });
+document.getElementById('finTodayBtn').addEventListener('click', () => { const n = new Date(); finY = n.getFullYear(); finM = n.getMonth(); renderFin(); fetchMoneyView(); });
+document.getElementById('btnFin').addEventListener('click', () => showPage('finances'));
+
+/* phone bottom tabs: chat/board switch views, the rest are full pages */
+document.getElementById('mnav').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.mview){
+    showPage('');
+    app.dataset.view = b.dataset.mview;
+    document.querySelectorAll('#mnav button').forEach(x => x.classList.toggle('on', x === b));
+    if (b.dataset.mview === 'board'){ fetchItems(); fetchMoney(); }
+  } else if (b.dataset.goto){
+    delete app.dataset.view;
+    document.querySelectorAll('#mnav button').forEach(x => x.classList.toggle('on', x === b));
+    showPage(b.dataset.goto);
+  }
+});
+
+/* ══════════════════════════════════════════════════════════════
+   HABITS  —  daily check-offs with a 7-day trail and streaks
+   ══════════════════════════════════════════════════════════════ */
+let habMarks = new Set();                     // 'itemId|YYYY-MM-DD'
+const dayKey = d => d.toLocaleDateString('en-CA');
+const habits = () => items.filter(i => i.kind === 'habit' && i.status === 'open');
+
+async function fetchHabitMarks(){
+  if (!cfg.key) return;
+  const to = new Date(), from = new Date();
+  from.setDate(from.getDate() - 30);
+  try {
+    const {marks} = await memoryCall({action:'habit_marks', from: dayKey(from), to: dayKey(to)});
+    habMarks = new Set((marks || []).map(m => m.item_id + '|' + m.day));
+  } catch (e) { /* keep what we had */ }
+}
+function habStreak(id){
+  let s = 0;
+  const d = new Date();
+  if (!habMarks.has(id + '|' + dayKey(d))) d.setDate(d.getDate() - 1);  // today pending doesn't break it
+  while (habMarks.has(id + '|' + dayKey(d))){ s++; d.setDate(d.getDate() - 1); }
+  return s;
+}
+function renderHab(){
+  const hs = habits();
+  const today = dayKey(new Date());
+  const doneToday = hs.filter(h => habMarks.has(h.id + '|' + today)).length;
+  document.getElementById('habSub').textContent = hs.length
+    ? doneToday + ' of ' + hs.length + ' done today · tap the circle to check off'
+    : 'daily check-offs with streaks';
+  if (!hs.length){
+    document.getElementById('habList').innerHTML =
+      EMPTY(cfg.key ? 'No habits yet — add one below, or tell Nathan what you want to build.' : 'Enter your code to connect Nathan first.');
+    return;
+  }
+  const days = [];
+  for (let i = 6; i >= 0; i--){
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push({k: dayKey(d), l: 'SMTWTFS'[d.getDay()]});
+  }
+  /* hero: today's completion as a glowing ring + a line that earns the day */
+  const frac = doneToday / hs.length;
+  const C = 2 * Math.PI * 28;
+  const msg = !doneToday
+    ? ['Nothing checked yet.', 'Start with one — momentum does the rest.']
+    : doneToday < hs.length
+      ? [doneToday + ' down, ' + (hs.length - doneToday) + ' to go.', 'Keep the streaks alive.']
+      : ['Perfect day ✦', 'Every habit done. That\'s how it compounds.'];
+  const hero = `
+  <div class="hab-hero${frac === 1 ? ' perfect' : ''}">
+    <svg width="0" height="0" style="position:absolute"><defs>
+      <linearGradient id="habGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#3ce0f0"/><stop offset="1" stop-color="#34d399"/>
+      </linearGradient>
+    </defs></svg>
+    <div class="hab-ring">
+      <svg class="r" viewBox="0 0 64 64">
+        <circle class="track" cx="32" cy="32" r="28"/>
+        <circle class="prog" cx="32" cy="32" r="28" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - frac)).toFixed(1)}"/>
+      </svg>
+      <div class="pct">${doneToday}/${hs.length}</div>
+    </div>
+    <div class="hab-hero-t"><b>${msg[0]}</b><span>${msg[1]}</span></div>
+  </div>`;
+  /* still-to-do habits float to the top so the day's work stares back at him */
+  const sorted = [...hs].sort((a, b) =>
+    Number(habMarks.has(a.id + '|' + today)) - Number(habMarks.has(b.id + '|' + today)));
+  document.getElementById('habList').innerHTML = hero + sorted.map(h => {
+    const done = habMarks.has(h.id + '|' + today);
+    const streak = habStreak(h.id);
+    return `
+    <div class="hab-card ${done ? 'done' : 'todo'}">
+      <button class="hab-tick${done ? ' on' : ''}" data-id="${h.id}" title="${done ? 'Done today — tap to undo' : 'Check off today'}">${CHECK}</button>
+      <div class="hab-mid">
+        <div class="hab-name">${esc(h.title)}</div>
+        <div class="hab-week">${days.map(d =>
+          `<span class="wd${d.k === today ? ' today' : ''}"><i class="${habMarks.has(h.id + '|' + d.k) ? 'on' : ''}"></i><u>${d.l}</u></span>`).join('')}</div>
+      </div>
+      <div class="hab-right">
+        <div class="hab-streak${streak ? '' : ' zero'}">${streak ? '🔥 ' + streak : '—'}</div>
+        <div class="hab-streak-l">${streak ? 'day streak' : 'no streak yet'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function openHab(){
+  renderHab();
+  if (cfg.key) Promise.all([fetchItems(), fetchHabitMarks()]).then(renderHab);
+}
+
+document.getElementById('habList').addEventListener('click', async e => {
+  const b = e.target.closest('.hab-tick');
+  if (!b) return;
+  const id = Number(b.dataset.id), k = id + '|' + dayKey(new Date());
+  habMarks.has(k) ? habMarks.delete(k) : habMarks.add(k);   // optimistic flip
+  renderHab();
+  try { await memoryCall({action:'habit_toggle', item:{id}, day: dayKey(new Date())}); }
+  catch (err){ habMarks.has(k) ? habMarks.delete(k) : habMarks.add(k); renderHab(); }
+});
+async function addHabit(){
+  const el = document.getElementById('habText');
+  const t = el.value.trim();
+  if (!t) return;
+  if (!cfg.key){ el.value = ''; el.placeholder = 'Enter your code to connect Nathan first'; return; }
+  try {
+    await memoryCall({action:'item_add', item:{kind:'habit', title: t}});
+    el.value = '';
+    await fetchItems();
+    renderHab();
+  } catch (e) { el.placeholder = 'Could not save — check your key'; }
+}
+document.getElementById('habAdd').addEventListener('click', addHabit);
+document.getElementById('habText').addEventListener('keydown', e => { if (e.key === 'Enter') addHabit(); });
+
+/* ══════════════════════════════════════════════════════════════
+   PROJECTS PAGE  —  manage progress without asking Nathan
+   ══════════════════════════════════════════════════════════════ */
+const projList = () => items.filter(i => i.kind === 'project' && i.status === 'open');
+
+function renderProj(){
+  const ps = projList();
+  document.getElementById('projSub').textContent =
+    ps.length ? ps.length + ' active · tap a percent to update' : 'nothing in flight';
+  document.getElementById('projList').innerHTML = ps.length ? ps.map(p => {
+    const c = pairFor(p.title);
+    return `
+    <div class="pcard" data-id="${p.id}">
+      <div class="ptop"><div class="pname">${esc(p.title)}</div><div class="ppct">${esc(p.percent ?? 0)}%</div></div>
+      <div class="psub">${esc(p.detail || '')}</div>
+      <div class="bar"><i data-p="${esc(p.percent ?? 0)}" style="background:linear-gradient(90deg,${esc(c[0])},${esc(c[1])})"></i></div>
+      <div class="pset">
+        ${[10,25,50,75,90].map(v => `<button data-pct="${v}">${v}%</button>`).join('')}
+        <button class="done" data-pct="100">✓ Done</button>
+      </div>
+    </div>`;
+  }).join('')
+  : EMPTY(cfg.key ? 'No active projects — add one below, or tell Nathan what you\'re building.' : 'Enter your code to connect Nathan first.');
+  setTimeout(() => {
+    document.querySelectorAll('#projList .bar i').forEach(b => b.style.width = b.dataset.p + '%');
+  }, 60);
+}
+function openProj(){
+  renderProj();
+  if (cfg.key) fetchItems().then(renderProj);
+}
+
+document.getElementById('projList').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-pct]');
+  if (!b) return;
+  const id = Number(b.closest('.pcard').dataset.id);
+  const pct = Number(b.dataset.pct);
+  const it = items.find(i => i.id === id);
+  if (it){ it.percent = pct; if (pct >= 100) it.status = 'done'; }
+  renderProj(); renderPanels();
+  try {
+    await memoryCall({action:'item_update', item:{id, percent: pct, ...(pct >= 100 ? {status:'done'} : {})}});
+  } catch (err){ fetchItems().then(renderProj); }
+});
+
+async function addProj(){
+  const tEl = document.getElementById('projText'), sEl = document.getElementById('projSubText');
+  const title = tEl.value.trim();
+  if (!title) return;
+  if (!cfg.key){ tEl.value = ''; tEl.placeholder = 'Enter your code to connect Nathan first'; return; }
+  try {
+    await memoryCall({action:'item_add', item:{kind:'project', title, detail: sEl.value.trim() || undefined, percent: 0}});
+    tEl.value = ''; sEl.value = ''; tEl.placeholder = 'Start a project…';
+    await fetchItems();
+    renderProj();
+  } catch (err){ tEl.placeholder = 'Could not save — check your key'; }
+}
+document.getElementById('projAdd').addEventListener('click', addProj);
+document.getElementById('projText').addEventListener('keydown', e => { if (e.key === 'Enter') addProj(); });
+
+/* ── header + phone navigation ── */
+document.getElementById('hnav').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b) showPage(b.dataset.page || '');
+});
+
+/* ══════════════════════════════════════════════════════════════
+   PHOTOS IN CHAT  —  attach, paste, downscale, send to the brain
+   ══════════════════════════════════════════════════════════════ */
+let pendingImg = null;    // {media_type, data (bare base64), url (preview), name}
+
+function setPending(img){
+  pendingImg = img;
+  const bar = document.getElementById('attachBar');
+  if (img){
+    document.getElementById('attachThumb').src = img.url;
+    document.getElementById('attachName').textContent = img.name || 'photo';
+    bar.classList.add('on');
+    sendBtn.classList.add('ready');
+  } else {
+    bar.classList.remove('on');
+    sendBtn.classList.toggle('ready', inputEl.value.trim().length > 0);
+  }
+}
+
+/* big photos get scaled to Claude's sweet spot (~1568px) and re-encoded */
+async function ingestImage(file){
+  if (!file || !/^image\//.test(file.type)) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  try {
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+  } catch (e) { URL.revokeObjectURL(url); return; }
+  const MAX = 1568;
+  const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+  let dataUrl, mt;
+  if (scale === 1 && file.size < 1.5 * 1024 * 1024 && /^image\/(jpeg|png|webp|gif)$/.test(file.type)){
+    dataUrl = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(file); });
+    mt = file.type;
+  } else {
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * scale);
+    c.height = Math.round(img.height * scale);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    dataUrl = c.toDataURL('image/jpeg', 0.85);
+    mt = 'image/jpeg';
+  }
+  URL.revokeObjectURL(url);
+  setPending({media_type: mt, data: dataUrl.split(',')[1], url: dataUrl, name: file.name});
+}
+
+document.getElementById('attach').addEventListener('click', () => document.getElementById('attachFile').click());
+document.getElementById('attachFile').addEventListener('change', e => { ingestImage(e.target.files[0]); e.target.value = ''; });
+document.getElementById('attachX').addEventListener('click', () => setPending(null));
+/* paste a screenshot anywhere on the page */
+addEventListener('paste', e => {
+  const it = [...((e.clipboardData || {}).items || [])].find(i => i.type.startsWith('image/'));
+  if (it){ e.preventDefault(); ingestImage(it.getAsFile()); }
+});
+
+/* ══════════════════════════════════════════════════════════════
+   CLOCK + GREETING
+   ══════════════════════════════════════════════════════════════ */
+function tick(){
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    d.toLocaleTimeString('en-CA', {hour:'2-digit', minute:'2-digit', hour12:false}) +
+    '  ·  ' + d.toLocaleDateString('en-CA', {weekday:'short', month:'short', day:'numeric'});
+  const h = d.getHours();
+  document.getElementById('greet').textContent =
+    h < 5 ? 'Still up' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+}
+tick(); setInterval(tick, 10000);
+
+function bootBadge(){
+  if (!connected()){ setConnBadge('demo', 'Demo mode'); return; }
+  setConnBadge('', cfg.speed === 'fast' ? 'Online · Fast' : 'Online');
+}
+bootBadge();
+setState('ready');
+renderPanels();                              // instant paint: live empties or demo samples
+renderFinCard();
+if (cfg.key){ loadMemory(true); fetchItems(); fetchMoney(); }
+if (!connected()) transEl.textContent = 'Running on sample replies — open settings to pick a brain.';
+</script>
+</body>
+</html>
