@@ -61,7 +61,11 @@ item's [#id] from the board below. Plans with a date/time become calendar entrie
 always include the time when he gives one, and when he gives a range ("a shift from
 11 to 5:30"), set both when and end. Habits he wants to build daily are kind habit
 (no date) — he ticks them off in the app's Habits tab. Don't ask permission for
-obvious board updates; just do them and mention it in one short line.
+obvious board updates; just do them, quietly. NEVER announce that you saved,
+remembered, or updated something ("Saved.", "Noted.", "I've added that") — the
+interface shows every write as it happens. Answer the substance instead; if
+there is nothing else to say, a short natural acknowledgement of WHAT he said
+(not of the bookkeeping) is enough.
 
 You also track his money. When he mentions earning or spending, log it with add_money
 (kind income or expense). Upcoming bills are kind bill with the due date — they show on
@@ -73,6 +77,12 @@ His paychecks are PRECOMPUTED in the WORK PAY block below ($16.90/h gross at
 Fontainebleau-Oil, paid every second Thursday). Use those exact numbers — never
 recompute them yourself — and say they are gross, before deductions. If shifts are
 missing end times, ask him for them so the math can be complete.
+
+You have live internet access through the web_search tool. Use it whenever the
+answer benefits from current information — news, prices, schedules, weather,
+opening hours, anything after your training data, or any fact you're not sure
+of. Search without asking permission; weave what you find into a normal answer
+and mention the source in a word or two when it matters.
 
 Some messages include a photo. Use what you see naturally — read receipts, screenshots,
 documents, whiteboards; describe only what matters to his question.
@@ -256,6 +266,10 @@ Deno.serve(async (req: Request) => {
     speed?: string;
     mode?: string;
     image?: { media_type: string; data: string };
+    /* the app re-attaches his most recent photo to follow-up messages —
+       history only keeps a text marker, so this is how "the photo I just
+       sent" stays visible to Claude. Never logged as a new photo. */
+    context_image?: { media_type: string; data: string };
   };
   try {
     body = await req.json();
@@ -266,11 +280,14 @@ Deno.serve(async (req: Request) => {
   const session = (body.session ?? "web").slice(0, 64);
   const userText = (body.message ?? "").trim();
   const image = body.image;
-  if (image && !/^image\/(jpeg|png|webp|gif)$/.test(image.media_type ?? "")) {
-    return json({ error: "bad_request", detail: "image.media_type must be image/jpeg, png, webp or gif." }, 400);
-  }
-  if (image && (image.data?.length ?? 0) > 8_000_000) {
-    return json({ error: "bad_request", detail: "Image too large — resize below ~6 MB." }, 400);
+  const ctxImage = body.context_image;
+  for (const im of [image, ctxImage]) {
+    if (im && !/^image\/(jpeg|png|webp|gif)$/.test(im.media_type ?? "")) {
+      return json({ error: "bad_request", detail: "image.media_type must be image/jpeg, png, webp or gif." }, 400);
+    }
+    if (im && (im.data?.length ?? 0) > 8_000_000) {
+      return json({ error: "bad_request", detail: "Image too large — resize below ~6 MB." }, 400);
+    }
   }
   if (!userText && !image && !body.messages?.length) {
     return json({ error: "bad_request", detail: "Nothing to send." }, 400);
@@ -374,7 +391,7 @@ Deno.serve(async (req: Request) => {
     (async () => {
       if (body.messages?.length) return body.messages;
       try {
-        const { data } = await db.rpc("nathan_history", { p_session: session, p_limit: 20 });
+        const { data } = await db.rpc("nathan_history", { p_session: session, p_limit: 30 });
         if (Array.isArray(data)) return data as { role: string; content: string }[];
       } catch { /* history is nice-to-have */ }
       return [] as { role: string; content: string }[];
@@ -404,11 +421,17 @@ Deno.serve(async (req: Request) => {
     { type: "text", text: `Current date and time in his timezone: ${now}.` },
   ];
 
-  /* the current turn: text, a photo, or both */
+  /* the current turn: text, a photo, or both — a context photo is the one he
+     sent a moment ago, re-attached so follow-up questions can still see it */
   const currentContent = image
     ? [
         { type: "image", source: { type: "base64", media_type: image.media_type, data: image.data } },
         { type: "text", text: userText || "(no caption — look at the photo)" },
+      ]
+    : ctxImage
+    ? [
+        { type: "image", source: { type: "base64", media_type: ctxImage.media_type, data: ctxImage.data } },
+        { type: "text", text: "(the photo above is the one he sent earlier, re-attached for reference)\n" + userText },
       ]
     : userText;
 
@@ -451,6 +474,13 @@ Deno.serve(async (req: Request) => {
      server-side fallbacks reroute those to a sibling model instead of failing */
   const opusClass = /^claude-(opus|fable)/.test(model);
 
+  /* live internet: Anthropic's server-side web search. Current models get the
+     smart-filtering variant; the Haiku fast gear keeps the basic one. */
+  const webSearch = model.indexOf("haiku") !== -1
+    ? { type: "web_search_20250305", name: "web_search", max_uses: 3 }
+    : { type: "web_search_20260209", name: "web_search", max_uses: 5 };
+  const tools = [...TOOLS, webSearch];
+
   /* ── call Claude with streaming on ── */
   const callClaude = (msgs: unknown[]) =>
     fetch("https://api.anthropic.com/v1/messages", {
@@ -467,7 +497,7 @@ Deno.serve(async (req: Request) => {
         max_tokens: mode === "work" ? 8000 : 4000,
         ...(mode === "work" ? { output_config: { effort: "xhigh" } } : {}),
         ...(opusClass ? { fallbacks: "default" } : {}),
-        system, tools: TOOLS, messages: msgs, stream: true,
+        system, tools, messages: msgs, stream: true,
       }),
     });
 
@@ -482,6 +512,7 @@ Deno.serve(async (req: Request) => {
     const saved: string[] = [];
     let board = 0;
     let money = 0;
+    let searches = 0;
     let convo: unknown[] = messages;
     let reply = "";
 
@@ -503,6 +534,7 @@ Deno.serve(async (req: Request) => {
         const blocks: Record<number, any> = {};
         const partialJson: Record<number, string> = {};
         let hopText = "";
+        let stopReason = "";
         let resetSent = hop === 0;      // a later hop's text replaces the preamble
 
         while (true) {
@@ -531,7 +563,12 @@ Deno.serve(async (req: Request) => {
                 blocks[ev.index].thinking = (blocks[ev.index].thinking ?? "") + ev.delta.thinking;
               } else if (ev.delta.type === "signature_delta") {
                 blocks[ev.index].signature = (blocks[ev.index].signature ?? "") + ev.delta.signature;
+              } else if (ev.delta.type === "citations_delta") {
+                /* web-search citations must survive for replay on later hops */
+                (blocks[ev.index].citations = blocks[ev.index].citations ?? []).push(ev.delta.citation);
               }
+            } else if (ev.type === "message_delta") {
+              if (ev.delta?.stop_reason) stopReason = ev.delta.stop_reason;
             } else if (ev.type === "error") {
               await emit({ type: "error", error: "anthropic", detail: JSON.stringify(ev.error).slice(0, 800) });
               return;
@@ -545,8 +582,16 @@ Deno.serve(async (req: Request) => {
         if (hopText.trim()) reply = hopText.trim();
 
         const ordered = Object.keys(blocks).map(Number).sort((a, b) => a - b).map((i) => blocks[i]);
+        searches += ordered.filter((b) => b.type === "server_tool_use").length;
         const toolUses = ordered.filter((b) => b.type === "tool_use");
-        if (!toolUses.length) break;
+        if (!toolUses.length) {
+          /* a long web search can pause the turn — hand the content back and continue */
+          if (stopReason === "pause_turn" && ordered.length) {
+            convo = [...convo, { role: "assistant", content: ordered }];
+            continue;
+          }
+          break;
+        }
 
         const results = [];
         for (const tu of toolUses) {
@@ -709,7 +754,7 @@ Deno.serve(async (req: Request) => {
         convo = [...convo, { role: "assistant", content: ordered }, { role: "user", content: results }];
       }
 
-      await emit({ type: "done", reply, saved, board, money, model });
+      await emit({ type: "done", reply, saved, board, money, searches, model });
     } catch (e) {
       await emit({ type: "error", error: "upstream", detail: String(e) });
     } finally {

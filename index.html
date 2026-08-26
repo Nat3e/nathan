@@ -256,88 +256,66 @@ main{
 .brainviz{position:absolute;inset:0;z-index:1;pointer-events:none;transition:opacity .6s var(--ease)}
 .app.chatting .brainviz{opacity:.4}
 .brainviz canvas{position:absolute;inset:0;width:100%;height:100%}
+/* knowledge-graph nodes: colored by what they are, named always, alive always */
 .bdot{
-  position:absolute;pointer-events:auto;transform:translate(-50%,-50%);
-  width:18px;height:18px;display:grid;place-items:center;cursor:default;
+  position:absolute;pointer-events:auto;transform:translate(-50%,-50%);cursor:default;
+  display:flex;flex-direction:column;align-items:center;gap:6px;will-change:left,top;
 }
 .bdot i{
-  width:7px;height:7px;border-radius:50%;background:var(--cy);
-  box-shadow:0 0 10px rgba(60,224,240,.8);opacity:.5;
-  transition:transform .25s var(--ease),opacity .25s;
-  animation:bfloat 6s ease-in-out infinite;
+  width:var(--d,12px);height:var(--d,12px);border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.9),var(--c,#3ce0f0) 60%);
+  box-shadow:0 0 14px var(--c,#3ce0f0);opacity:.92;
+  transition:transform .25s var(--ease),box-shadow .25s;
 }
-.bdot.sys i{background:var(--vi);box-shadow:0 0 10px rgba(167,139,250,.8)}
 .bdot u{
-  position:absolute;top:16px;left:50%;transform:translateX(-50%);
-  white-space:nowrap;text-decoration:none;font-family:var(--mono);font-size:9.5px;
-  color:var(--cy);opacity:0;transition:.25s;pointer-events:none;
-  background:rgba(4,4,6,.78);padding:2px 8px;border-radius:6px;
-  border:1px solid rgba(60,224,240,.25);backdrop-filter:blur(8px);
+  text-decoration:none;font-size:10px;letter-spacing:.02em;color:var(--txt-2);
+  opacity:.62;transition:.25s;white-space:nowrap;pointer-events:none;
+  text-shadow:0 1px 8px rgba(0,0,0,.95),0 0 2px rgba(0,0,0,.9);
 }
-.bdot.sys u{color:var(--vi);border-color:rgba(167,139,250,.3)}
-.bdot:hover i{opacity:1;transform:scale(1.7)}
-.bdot:hover u{opacity:1}
-.bdot.hot i{opacity:1;transform:scale(1.9);box-shadow:0 0 20px rgba(60,224,240,1)}
-@keyframes bfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.bdot:hover i{transform:scale(1.45)}
+.bdot:hover u{opacity:1;color:#fff}
+.bdot.hot i{transform:scale(1.6);box-shadow:0 0 28px var(--c,#3ce0f0)}
+.bdot.hot u{opacity:1;color:#fff}
 
-/* the head lives in the top-right corner now — the stage belongs to the Brain */
-.orbwrap{
-  position:absolute;top:16px;right:24px;z-index:2;
-  display:flex;flex-direction:column;align-items:center;gap:0;
-  transition:.75s var(--ease);pointer-events:none;
-}
-.orbwrap .caption,.orbwrap canvas{pointer-events:auto}
-.orbstack{position:relative;display:grid;place-items:center;transition:.75s var(--ease)}
-#orb{display:block;width:250px;height:250px;transition:.75s var(--ease)}
-.bloom{
-  position:absolute;width:250px;height:250px;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle,rgba(60,224,240,.14) 0%,rgba(167,139,250,.08) 38%,transparent 66%);
-  filter:blur(30px);animation:bloom 7s var(--ease) infinite;transition:.75s var(--ease);
-}
-@keyframes bloom{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.13);opacity:1}}
-
+/* status + spoken words live just above the chat box */
 .caption{
-  margin-top:4px;text-align:center;transition:.5s var(--ease);max-width:270px;
-}
-.transcript{
-  font-size:12px;color:var(--txt-3);letter-spacing:.01em;min-height:18px;
-  transition:.4s;
+  position:absolute;left:50%;transform:translateX(-50%);bottom:208px;z-index:3;
+  text-align:center;width:min(680px,calc(100% - 48px));pointer-events:none;
+  transition:.5s var(--ease);
 }
 .state{
-  margin-top:6px;font-size:20px;font-weight:300;letter-spacing:-.01em;
+  font-size:19px;font-weight:300;letter-spacing:-.01em;
   background:linear-gradient(96deg,#fff,#cfe9f5 40%,var(--cy) 72%,var(--vi));
   -webkit-background-clip:text;background-clip:text;color:transparent;
 }
+.transcript{
+  margin-top:5px;font-size:12.5px;color:var(--txt-3);letter-spacing:.01em;min-height:18px;
+  transition:.4s;
+}
+.app.chatting .caption{opacity:0}
 .hint{margin-top:11px;font-size:11.5px;color:var(--txt-3);letter-spacing:.03em}
 .hint kbd{
   font-family:var(--mono);font-size:10px;padding:2px 5px;border-radius:4px;
   border:1px solid var(--line-hi);background:rgba(255,255,255,.04);color:var(--txt-2);
 }
 
-/* thread */
+/* thread: a tight centered column hugging the chat box — replies land
+   right where he's typing, not spread across the whole stage */
 .thread{
-  position:absolute;inset:78px 0 118px 0;overflow-y:auto;padding:8px 8% 10px;
+  position:absolute;left:50%;transform:translateX(-50%);top:18px;bottom:94px;
+  width:min(760px,calc(100% - 40px));overflow-y:auto;padding:8px 4px 10px;
   display:flex;flex-direction:column;gap:14px;
   opacity:0;pointer-events:none;transition:.5s var(--ease);
 }
 .thread .spacer{flex:1 1 auto;min-height:0}
 .app.chatting .thread{opacity:1;pointer-events:auto}
 
-/* orb collapses into a live status bar at the top of the thread */
-.app.chatting .orbwrap{
-  position:absolute;top:0;left:0;right:0;height:78px;flex:0 0 auto;
-  flex-direction:row;justify-content:center;align-items:center;gap:13px;
-  background:linear-gradient(180deg,rgba(8,8,12,.96) 40%,transparent);
-  z-index:5;pointer-events:none;
-}
-.app.chatting #orb{width:50px;height:50px}
-.app.chatting .bloom{width:60px;height:60px;filter:blur(13px)}
-.app.chatting .caption{margin:0;text-align:left}
-.app.chatting .transcript,.app.chatting .hint{display:none}
-.app.chatting .state{
-  margin:0;font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
-}
 
+.hist-divider{
+  align-self:center;flex:0 0 auto;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--txt-3);padding:4px 12px;border:1px solid var(--line);border-radius:99px;
+  background:var(--panel);opacity:.75;margin:2px 0;
+}
 .msg{max-width:76%;display:flex;gap:11px;animation:rise .45s var(--ease) both}
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 .msg.me{align-self:flex-end;flex-direction:row-reverse}
@@ -418,10 +396,6 @@ main{
     padding:10px 10px calc(70px + env(safe-area-inset-bottom));
   }
   .col.left,.col.right{display:none}
-  #orb,.bloom{width:225px;height:225px}
-  .app:not(.chatting) .orbwrap{padding-bottom:150px}  /* keep caption clear of the chips */
-  .caption{margin-top:14px}
-  .state{font-size:22px;margin-top:8px}
   .hgreet,.clock,.hint,.hnav{display:none}
   .stage-brand{top:14px;left:16px}
   .stage-brand .hgreet{display:none}
@@ -920,13 +894,11 @@ input[type=range].slider::-moz-range-thumb{
   .hab-card{padding:13px 14px}
   .hab-week{gap:6px}
 
-  /* the head in the corner, phone-sized; the stage stays the Brain's */
-  .app:not(.chatting) .orbwrap{top:8px;right:10px;padding-bottom:0}
-  #orb,.bloom{width:130px;height:130px}
-  .caption{margin-top:0;max-width:150px}
-  .transcript{font-size:10px;min-height:14px}
-  .state{font-size:14px;margin-top:2px}
-  .app.chatting #orb,.app.chatting .bloom{width:50px;height:50px}
+  /* status line + graph labels, phone-sized */
+  .caption{bottom:200px;width:calc(100% - 24px)}
+  .state{font-size:16px}
+  .transcript{font-size:11px;min-height:15px}
+  .bdot u{font-size:8px}
 }
 </style>
 </head>
@@ -1006,16 +978,10 @@ input[type=range].slider::-moz-range-thumb{
         <div class="hgreet"><span id="greet">Good evening</span>, <b>Nataniel</b></div>
       </div>
 
-      <div class="orbwrap">
-        <div class="orbstack">
-          <div class="bloom"></div>
-          <canvas id="orb" width="400" height="400"></canvas>
-        </div>
-        <div class="caption">
-          <div class="transcript" id="transcript">Ask me anything — or just say what's on your mind.</div>
-          <div class="state" id="state">Ready</div>
-          <div class="hint">Press <kbd>/</kbd> to type &nbsp;·&nbsp; <kbd>Space</kbd> to talk</div>
-        </div>
+      <!-- Nathan's live status + spoken words sit right above the chat box -->
+      <div class="caption">
+        <div class="state" id="state">Ready</div>
+        <div class="transcript" id="transcript">Ask me anything — or just say what's on your mind.</div>
       </div>
 
       <div class="thread scroll" id="thread"><div class="spacer"></div></div>
@@ -1331,214 +1297,6 @@ const REPLIES = [
   "I remember you're in Rosemère, working part-time while you build this out. You chose services over products, you're aiming at local businesses for workflow automation, and WISMO is your first real product idea.",
 ];
 
-/* ══════════════════════════════════════════════════════════════
-   THE ORB
-   ══════════════════════════════════════════════════════════════ */
-const cvs = document.getElementById('orb');
-const ctx = cvs.getContext('2d');
-let DPR = Math.min(window.devicePixelRatio || 1, 2);
-let W = 0, H = 0, CX = 0, CY = 0, R = 0;
-
-function sizeOrb(){
-  const rect = cvs.getBoundingClientRect();
-  W = rect.width; H = rect.height;
-  cvs.width  = Math.round(W * DPR);
-  cvs.height = Math.round(H * DPR);
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  CX = W / 2; CY = H / 2; R = Math.min(W, H) * 0.40;
-}
-
-/* fibonacci sphere */
-const N = 2600, PTS = [];
-for (let i = 0; i < N; i++){
-  const k = i + 0.5;
-  const phi = Math.acos(1 - 2 * k / N);
-  const th  = Math.PI * (1 + Math.sqrt(5)) * k;
-  PTS.push({
-    x: Math.cos(th) * Math.sin(phi),
-    y: Math.sin(th) * Math.sin(phi),
-    z: Math.cos(phi),
-    r: Math.random(),
-  });
-}
-
-let amp = 0.22, ampTarget = 0.22, spin = 0;
-const TAU = Math.PI * 2;
-
-/* project a point that already sits in sphere space */
-function proj(x, y, z){
-  const sc = 0.86 / (1.20 - z * 0.36);
-  return [CX + x * R * sc, CY + y * R * sc, sc];
-}
-
-/* an orbital ring: circle in its own plane, tilted, drawn with depth-aware alpha */
-function drawRing(t, rad, tiltX, tiltZ, speed, r, g, b, base){
-  const cx1 = Math.cos(tiltX), sx1 = Math.sin(tiltX);
-  const cz1 = Math.cos(tiltZ), sz1 = Math.sin(tiltZ);
-  const SEG = 96, phase = t * speed;
-  let prev = null;
-  ctx.lineCap = 'round';
-  for (let i = 0; i <= SEG; i++){
-    const a = (i / SEG) * TAU + phase;
-    const x0 = Math.cos(a) * rad, z0 = Math.sin(a) * rad;
-    const y1 = -z0 * sx1, z1 = z0 * cx1;
-    const x2 = x0 * cz1 - y1 * sz1, y2 = x0 * sz1 + y1 * cz1;
-    const p = proj(x2, y2, z1);
-    if (prev){
-      const depth = (z1 / rad + 1) / 2;
-      const a2 = base * (0.10 + depth * depth * 1.5) * (0.55 + amp * 0.75);
-      ctx.strokeStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + a2 + ')';
-      ctx.lineWidth = 0.5 + depth * 1.15;
-      ctx.beginPath(); ctx.moveTo(prev[0], prev[1]); ctx.lineTo(p[0], p[1]); ctx.stroke();
-    }
-    prev = p;
-  }
-}
-
-function drawOrb(t){
-  ctx.clearRect(0, 0, W, H);
-  amp += (ampTarget - amp) * 0.055;
-  spin += 0.0014 + amp * 0.0020;
-  const small = R < 42;
-
-  const cs = Math.cos(spin), sn = Math.sin(spin);
-  const tilt = -0.30, ct = Math.cos(tilt), st = Math.sin(tilt);
-
-  /* ── 1. atmospheric halo, outside the shell ── */
-  const halo = ctx.createRadialGradient(CX, CY, R * 0.72, CX, CY, R * 1.5);
-  halo.addColorStop(0,   'rgba(60,224,240,' + (0.07 + amp * 0.11) + ')');
-  halo.addColorStop(0.45,'rgba(120,140,255,' + (0.04 + amp * 0.06) + ')');
-  halo.addColorStop(1,   'rgba(167,139,250,0)');
-  ctx.fillStyle = halo;
-  ctx.beginPath(); ctx.arc(CX, CY, R * 1.5, 0, TAU); ctx.fill();
-
-  /* ── 2. sphere body: barely-there hologram, not a solid ball ── */
-  const body = ctx.createRadialGradient(CX - R * .22, CY + R * .3, R * .06, CX, CY, R);
-  body.addColorStop(0,   'rgba(38,120,168,' + (0.14 + amp * 0.16) + ')');
-  body.addColorStop(0.42,'rgba(22,50,102,'  + (0.13 + amp * 0.09) + ')');
-  body.addColorStop(0.82,'rgba(10,14,42,0.20)');
-  body.addColorStop(1,   'rgba(6,8,24,0.06)');
-  ctx.fillStyle = body;
-  ctx.beginPath(); ctx.arc(CX, CY, R, 0, TAU); ctx.fill();
-
-  ctx.globalCompositeOperation = 'lighter';
-
-  /* ── 3. orbital rings behind + around the shell ── */
-  if (!small){
-    drawRing(t, 1.00, -1.18,  0.28,  0.00030,  60, 224, 240, 0.32);
-    drawRing(t, 1.15, -1.34, -0.52, -0.00019, 167, 139, 250, 0.26);
-    drawRing(t, 0.84, -0.92,  0.86,  0.00044, 244, 114, 182, 0.16);
-  }
-
-  /* ── 4. particle shell ── */
-  const step = small ? 4 : 1;
-  for (let i = 0; i < N; i += step){
-    const p = PTS[i];
-    const x = p.x * cs - p.z * sn;
-    const z = p.x * sn + p.z * cs;
-    const y2 = p.y * ct - z * st;
-    const z2 = p.y * st + z * ct;
-
-    /* surface displacement — breathing + reactive ripple */
-    const wob = 1
-      + 0.030 * Math.sin(t * 0.0009 + p.r * 6.5)
-      + amp * 0.14 * Math.sin(t * 0.0026 + y2 * 3.4 + p.r * 5.0);
-
-    const q = proj(x * wob, y2 * wob, z2);
-    const depth = (z2 + 1) / 2;                       // 0 back → 1 front
-    const spark = p.r > 0.972 ? 2.3 : 1;              // a few bright motes
-    const a = (0.05 + depth * depth * 0.85) * (0.5 + amp * 0.75) * spark;
-    if (a < 0.015) continue;
-    const size = (0.24 + depth * 1.20) * (0.62 + p.r * 0.62) * (0.85 + amp * 0.45) * (spark > 1 ? 1.6 : 1);
-
-    const hue = 176 + ((y2 + 1) / 2) * 74;            // cyan-dominant, violet toward the base
-    ctx.fillStyle = 'hsla(' + hue + ',92%,' + (62 + depth * 24) + '%,' + Math.min(a, 1) + ')';
-    ctx.beginPath(); ctx.arc(q[0], q[1], size, 0, TAU); ctx.fill();
-  }
-
-  /* ── 5. waveform through the middle ── */
-  const wa = 0.30 + amp * 0.85;                        // never fully flat
-  ctx.save();
-  ctx.beginPath(); ctx.arc(CX, CY, R * 0.985, 0, TAU); ctx.clip();
-  for (let L = 0; L < 4; L++){
-    /* long soft ramps at both ends so the wave dissolves well before the rim */
-    const g = ctx.createLinearGradient(CX - R, 0, CX + R, 0);
-    g.addColorStop(0,    'rgba(60,224,240,0)');
-    g.addColorStop(0.10, 'rgba(60,224,240,0)');
-    g.addColorStop(0.30, 'rgba(80,236,250,' + (0.34 + amp * 0.5) + ')');
-    g.addColorStop(0.55, 'rgba(190,175,255,' + (0.42 + amp * 0.55) + ')');
-    g.addColorStop(0.72, 'rgba(244,114,182,' + (0.26 + amp * 0.4) + ')');
-    g.addColorStop(0.90, 'rgba(244,114,182,0)');
-    g.addColorStop(1,    'rgba(244,114,182,0)');
-    ctx.strokeStyle = g;
-    ctx.lineWidth = (1.3 - L * 0.26) * (small ? 0.6 : 1);
-    ctx.beginPath();
-    for (let i = 0; i <= 170; i++){
-      const u = i / 170;
-      const px = CX - R + u * 2 * R;
-      const env = Math.pow(Math.sin(u * Math.PI), 1.5);
-      const py = CY + env * R * 0.30 * wa * (
-          Math.sin(u *  8.5 + t * 0.0023 + L * 1.75) * 0.60 +
-          Math.sin(u * 16.0 - t * 0.0031 + L * 2.55) * 0.26 +
-          Math.sin(u *  3.4 + t * 0.0013 + L * 0.70) * 0.48
-      ) - L * 0.4;
-      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
-    }
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  /* ── 6. glass rim: a clean hairline, bright only where the light hits ── */
-  const rimR = R * (1 + amp * 0.014);
-  const rim = ctx.createLinearGradient(CX - R, CY + R, CX + R, CY - R);
-  rim.addColorStop(0,   'rgba(90,240,255,' + (0.55 + amp * 0.2) + ')');
-  rim.addColorStop(0.4, 'rgba(120,190,255,' + (0.20 + amp * 0.22) + ')');
-  rim.addColorStop(0.75,'rgba(167,139,250,' + (0.34 + amp * 0.3) + ')');
-  rim.addColorStop(1,   'rgba(244,114,182,' + (0.18 + amp * 0.22) + ')');
-  ctx.strokeStyle = rim;
-  ctx.lineWidth = small ? 0.8 : 1.1;
-  ctx.beginPath(); ctx.arc(CX, CY, rimR, 0, TAU); ctx.stroke();
-
-  /* inner rim falloff, gives it thickness */
-  const inner = ctx.createRadialGradient(CX, CY, R * 0.86, CX, CY, R);
-  inner.addColorStop(0, 'rgba(60,224,240,0)');
-  inner.addColorStop(1, 'rgba(90,220,255,' + (0.09 + amp * 0.14) + ')');
-  ctx.fillStyle = inner;
-  ctx.beginPath(); ctx.arc(CX, CY, R, 0, TAU); ctx.fill();
-
-  ctx.globalCompositeOperation = 'source-over';
-
-  /* ── 7. tight rotating accent arcs, just outside the rim —
-          drawn in segments whose alpha swells mid-arc and melts to
-          nothing at both ends, so nothing ever visibly "cuts" ── */
-  if (!small){
-    const aR = R * 1.055, arcA = t * 0.00040;
-    const fadeArc = (a0, a1, r, gc, b, maxA, width) => {
-      const SEG = 22;
-      ctx.lineCap = 'round';
-      ctx.lineWidth = width;
-      for (let i = 0; i < SEG; i++){
-        const t0 = i / SEG, t1 = (i + 1) / SEG;
-        const fall = Math.sin(((t0 + t1) / 2) * Math.PI);      // 0 ends → 1 middle
-        const alpha = maxA * fall * fall;
-        if (alpha < 0.01) continue;
-        ctx.strokeStyle = 'rgba(' + r + ',' + gc + ',' + b + ',' + alpha + ')';
-        ctx.beginPath();
-        ctx.arc(CX, CY, aR, a0 + (a1 - a0) * t0, a0 + (a1 - a0) * t1 + 0.004);
-        ctx.stroke();
-      }
-    };
-    fadeArc(arcA, arcA + 0.60, 60, 224, 240, 0.34 + amp * 0.4, 1.5);
-    fadeArc(arcA + Math.PI, arcA + Math.PI + 0.36, 167, 139, 250, 0.26 + amp * 0.35, 1.5);
-    fadeArc(-arcA * 1.6, -arcA * 1.6 + 1.5, 255, 255, 255, 0.12 + amp * 0.12, 0.7);
-  }
-}
-
-let raf;
-function loop(t){ drawOrb(t); raf = requestAnimationFrame(loop); }
-sizeOrb(); raf = requestAnimationFrame(loop);
-addEventListener('resize', () => { DPR = Math.min(window.devicePixelRatio || 1, 2); sizeOrb(); });
-new ResizeObserver(() => sizeOrb()).observe(cvs);   // keeps up when the orb collapses into the status bar
 
 /* ══════════════════════════════════════════════════════════════
    STATE
@@ -1559,7 +1317,6 @@ const STATES = {
 };
 function setState(k, sub){
   const s = STATES[k];
-  ampTarget = s.amp;
   stateEl.textContent = s.label;
   transEl.textContent = sub || s.sub;
   transEl.classList.toggle('live', k === 'listening' && !!sub);
@@ -1689,7 +1446,7 @@ async function lockKey(k){
       /* first unlock on this device (or a rotated key) — light everything up */
       bootBadge();
       itemsLive = true;
-      loadMemory(true); fetchItems(); fetchMoney();
+      loadMemory(true); fetchItems(); fetchMoney(); preloadHistory();
       if (transEl.textContent.indexOf('sample replies') !== -1){
         transEl.textContent = 'Connected — ask me anything.';
       }
@@ -1800,49 +1557,85 @@ async function loadMemory(force){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   THE BRAIN — every memory file is a living dot around the orb.
-   Hover a dot to see which file it is. When Nathan works, watch
-   the data travel between his core and his memory.
+   THE BRAIN — a living knowledge graph. Every memory file is a
+   colored, named node; related nodes are linked; sparks of data
+   travel the links constantly, and rush when Nathan is working.
    ══════════════════════════════════════════════════════════════ */
 let memoryFiles = [];
 const brainEl = document.getElementById('brainViz');
 const brainCv = document.getElementById('brainCanvas');
-let brainNodes = [], brainPulses = [], brainBusy = false;
+let brainNodes = [], brainEdges = [], brainSparks = [], brainBusy = false;
 
 const brainHash = s => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
+function brainColor(key){
+  if (key === '@board') return '#fbbf24';
+  if (key === '@money') return '#34d399';
+  if (key === '@inbox') return '#f472b6';
+  if (key.indexOf('/areas') === 0) return '#fbbf24';
+  if (key.indexOf('/topics') === 0) return '#34d399';
+  if (key.indexOf('/people') === 0) return '#fb923c';
+  if (key.indexOf('/preferences') === 0 || key.indexOf('/finances') === 0) return '#a78bfa';
+  if (key.indexOf('/briefings') === 0) return '#3ce0f0';
+  return '#e8ecf6';                                  // profile & everything else
+}
+const brainRgba = (hex, a) => {
+  const n = parseInt(hex.slice(1), 16);
+  return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+};
 
 function brainBuild(){
   if (!brainEl) return;
   const nodes = [
-    {key: '@board', label: 'live board', sys: true},
-    {key: '@money', label: 'finances',   sys: true},
-    {key: '@inbox', label: 'inbox',      sys: true},
-    ...memoryFiles.map(f => ({key: f.path, label: f.path.replace(/^\//, ''), sys: false})),
+    {key: '@board', label: 'Live board', sys: true},
+    {key: '@money', label: 'Finances',   sys: true},
+    {key: '@inbox', label: 'Inbox',      sys: true},
+    ...memoryFiles.map(f => ({
+      key: f.path,
+      label: f.path.replace(/^\//, '').replace(/\.md$/, ''),
+      sys: false,
+    })),
   ];
   brainEl.querySelectorAll('.bdot').forEach(d => d.remove());
   brainNodes = nodes.map((nd, i) => {
     const h = brainHash(nd.key);
-    const a = i * 2.399963 + (h % 628) / 100;          // golden-angle spread + jitter
-    const s = 0.62 + ((h >> 5) % 1000) / 1000 * 0.38;  // how far out on the ring
+    const d = nd.sys ? 17 : 11 + (h % 6);            // node size, px
     const el = document.createElement('div');
-    el.className = 'bdot' + (nd.sys ? ' sys' : '');
-    el.innerHTML = '<i style="animation-delay:-' + ((h % 60) / 10) + 's"></i><u>' + escapeHtml(nd.label) + '</u>';
+    el.className = 'bdot';
+    el.style.setProperty('--c', brainColor(nd.key));
+    el.style.setProperty('--d', d + 'px');
+    el.innerHTML = '<i></i><u>' + escapeHtml(nd.label) + '</u>';
     brainEl.appendChild(el);
-    return {key: nd.key, a, s, el, x: 0, y: 0};
+    return {
+      key: nd.key, el, color: brainColor(nd.key),
+      a: i * 2.399963 + (h % 628) / 100,             // golden-angle spread + jitter
+      s: 0.55 + ((h >> 5) % 1000) / 1000 * 0.45,
+      p1: (h % 100) / 16, p2: ((h >> 7) % 100) / 16, // drift phases
+      bx: 0, by: 0, x: 0, y: 0,
+    };
   });
   brainLayout();
+  /* links: each node reaches for its two nearest neighbours (deduped) */
+  const seen = new Set();
+  brainEdges = [];
+  for (const n of brainNodes){
+    const near = brainNodes
+      .filter(o => o !== n)
+      .sort((a, b) =>
+        ((a.bx - n.bx) ** 2 + (a.by - n.by) ** 2) - ((b.bx - n.bx) ** 2 + (b.by - n.by) ** 2))
+      .slice(0, 2);
+    for (const o of near){
+      const id = [n.key, o.key].sort().join('|');
+      if (!seen.has(id)){ seen.add(id); brainEdges.push([n, o]); }
+    }
+  }
 }
 function brainLayout(){
   if (!brainEl) return;
   const w = brainEl.clientWidth, h = brainEl.clientHeight;
-  /* constellation sits slightly left-of-center — the head owns the top right */
   for (const n of brainNodes){
-    n.x = w * 0.46 + Math.cos(n.a) * w * 0.38 * n.s;
-    n.y = h * 0.54 + Math.sin(n.a) * h * 0.33 * n.s;
-    n.el.style.left = n.x + 'px';
-    n.el.style.top = n.y + 'px';
+    n.bx = w * 0.5 + Math.cos(n.a) * w * 0.36 * n.s;
+    n.by = h * 0.46 + Math.sin(n.a) * h * 0.32 * n.s;
   }
-  brainCoreSync();
   const dpr = Math.min(devicePixelRatio || 1, 2);
   brainCv.width = Math.max(1, w * dpr);
   brainCv.height = Math.max(1, h * dpr);
@@ -1850,27 +1643,16 @@ function brainLayout(){
 }
 addEventListener('resize', () => { if (brainNodes.length) brainLayout(); });
 
-/* the threads all lead to the head — wherever it currently sits */
-let brainCore = {x: 0, y: 0};
-function brainCoreSync(){
-  try {
-    const o = document.getElementById('orb').getBoundingClientRect();
-    const b = brainEl.getBoundingClientRect();
-    if (o.width && b.width){
-      brainCore.x = o.left + o.width / 2 - b.left;
-      brainCore.y = o.top + o.height / 2 - b.top;
-    }
-  } catch (e) {}
-}
-setInterval(brainCoreSync, 600);
-
-/* a spark of data travels core ↔ dot; strong = a real write, not ambience */
+/* a burst of data arrives at a node — real writes ride the links in */
 function brainPulse(key, strong){
   const n = brainNodes.find(x => x.key === key);
   if (!n) return;
-  brainPulses.push({n, t: 0, strong: !!strong, out: strong ? true : Math.random() < 0.5});
   n.el.classList.add('hot');
-  setTimeout(() => n.el.classList.remove('hot'), 1300);
+  setTimeout(() => n.el.classList.remove('hot'), 1400);
+  const mine = brainEdges.filter(e => e[0] === n || e[1] === n);
+  for (const e of mine.slice(0, 3)){
+    brainSparks.push({e, t: 0, toB: e[1] === n, strong: !!strong});
+  }
 }
 function brainWorking(on){ brainBusy = on; }
 
@@ -1878,33 +1660,43 @@ function brainWorking(on){ brainBusy = on; }
   requestAnimationFrame(brainLoop);
   if (!brainEl || !brainCv || !brainNodes.length) return;
   const w = brainEl.clientWidth, h = brainEl.clientHeight;
-  const cx = brainCore.x || w / 2, cy = brainCore.y || h / 2;
   const ctx = brainCv.getContext('2d');
   ctx.clearRect(0, 0, w, h);
   const t = performance.now() / 1000;
+
+  /* gentle drift — the graph breathes */
   for (const n of brainNodes){
-    const a = 0.03 + 0.028 * (0.5 + 0.5 * Math.sin(t * 0.7 + n.a * 3));
-    ctx.strokeStyle = 'rgba(60,224,240,' + (brainBusy ? a * 2.2 : a).toFixed(3) + ')';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(n.x, n.y); ctx.stroke();
+    n.x = n.bx + Math.sin(t * 0.42 + n.p1) * 8;
+    n.y = n.by + Math.cos(t * 0.35 + n.p2) * 7;
+    n.el.style.left = n.x + 'px';
+    n.el.style.top = n.y + 'px';
   }
-  /* while he's thinking, ambient sparks wander his whole memory */
-  if (brainBusy && Math.random() < 0.07 && brainPulses.length < 6){
-    const n = brainNodes[(Math.random() * brainNodes.length) | 0];
-    brainPulses.push({n, t: 0, strong: false, out: Math.random() < 0.5});
+
+  /* links, tinted by the node they leave */
+  ctx.lineWidth = 1;
+  for (const [a, b] of brainEdges){
+    const base = 0.10 + 0.05 * Math.sin(t * 0.8 + a.p1);
+    ctx.strokeStyle = brainRgba(a.color, brainBusy ? base * 2 : base);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
   }
-  for (const p of brainPulses){
-    p.t += p.strong ? 0.014 : 0.02;
-    const e = p.t < 0.5 ? 2 * p.t * p.t : 1 - Math.pow(-2 * p.t + 2, 2) / 2;
-    const k = p.out ? e : 1 - e;
-    const x = cx + (p.n.x - cx) * k, y = cy + (p.n.y - cy) * k;
-    ctx.shadowBlur = p.strong ? 14 : 8;
-    ctx.shadowColor = 'rgba(60,224,240,.9)';
-    ctx.fillStyle = 'rgba(170,246,255,.95)';
-    ctx.beginPath(); ctx.arc(x, y, p.strong ? 3.4 : 2.2, 0, 7); ctx.fill();
+
+  /* sparks ride the links — a quiet trickle at rest, a rush while working */
+  if (brainEdges.length && Math.random() < (brainBusy ? 0.10 : 0.015) && brainSparks.length < 10){
+    brainSparks.push({e: brainEdges[(Math.random() * brainEdges.length) | 0], t: 0, toB: Math.random() < 0.5, strong: false});
+  }
+  for (const p of brainSparks){
+    p.t += p.strong ? 0.014 : 0.011;
+    const k = p.toB ? p.t : 1 - p.t;
+    const [a, b] = p.e;
+    const x = a.x + (b.x - a.x) * k, y = a.y + (b.y - a.y) * k;
+    const c = p.toB ? b.color : a.color;
+    ctx.shadowBlur = p.strong ? 12 : 7;
+    ctx.shadowColor = c;
+    ctx.fillStyle = brainRgba(c, 0.95);
+    ctx.beginPath(); ctx.arc(x, y, p.strong ? 2.8 : 1.9, 0, 7); ctx.fill();
     ctx.shadowBlur = 0;
   }
-  brainPulses = brainPulses.filter(p => p.t < 1);
+  brainSparks = brainSparks.filter(p => p.t < 1);
 })();
 
 const pillEl = document.querySelector('.pill');
@@ -1948,15 +1740,44 @@ function bubble(who, html){
   return m;
 }
 
+/* the conversation continues where it left off: recent turns are waiting in
+   the thread when the chat opens — same history Nathan himself reads */
+let histLoaded = false;
+async function preloadHistory(){
+  if (histLoaded || !connected()) return;
+  histLoaded = true;
+  try {
+    const {turns} = await memoryCall({action: 'history', session: 'web', limit: 12});
+    if (!Array.isArray(turns) || !turns.length) return;
+    for (const t of turns){
+      bubble(t.role === 'assistant' ? 'nat' : 'me',
+        t.role === 'assistant' ? fmt(t.content) : escapeHtml(t.content));
+    }
+    const d = document.createElement('div');
+    d.className = 'hist-divider';
+    d.textContent = 'earlier · new messages below';
+    threadEl.appendChild(d);
+    threadEl.scrollTop = threadEl.scrollHeight;
+  } catch (e) { /* history is a nicety */ }
+}
+
+/* The last photo stays "in mind" for follow-up questions: history only keeps
+   a text marker, so without this Nathan literally can't see a photo again the
+   moment the next message arrives. */
+let lastImg = null;                                 // {media_type, data, at}
+
 /* The brain streams NDJSON — tokens render the moment Claude produces them.
    Falls back to a single JSON blob if an older deployment answers. */
 async function askBrain(text, onToken, img){
+  if (img) lastImg = {media_type: img.media_type, data: img.data, at: Date.now()};
+  const ctx = !img && lastImg && Date.now() - lastImg.at < 900000 ? lastImg : null;
   const res = await fetch(cfg.endpoint, {
     method: 'POST',
     headers: {'content-type':'application/json', 'x-nathan-key': cfg.key},
     body: JSON.stringify({
       message: text, session: 'web', speed: cfg.speed, mode: cfg.mode || 'normal',
       ...(img ? {image: {media_type: img.media_type, data: img.data}} : {}),
+      ...(ctx ? {context_image: {media_type: ctx.media_type, data: ctx.data}} : {}),
     }),
   });
   if (!res.ok){
@@ -2034,22 +1855,13 @@ async function send(text){
       const data = await askBrain(text, onToken, img);
       clearTimeout(slow);
       bub.innerHTML = fmt(data.reply || '(no reply)');
+      /* writes announce themselves only in the Brain graph — no chips, no chatter */
       if (data.saved && data.saved.length){
-        bub.insertAdjacentHTML('beforeend',
-          '<div class="saved-chip">✓ remembered ' + escapeHtml(data.saved.join(', ')) + '</div>');
         data.saved.forEach(p => brainPulse(p, true));
-        loadMemory(true);                       // new/updated file → refresh the Brain's dots
+        loadMemory(true);                       // new/updated file → refresh the Brain's nodes
       }
-      if (data.board){
-        bub.insertAdjacentHTML('beforeend', '<div class="saved-chip">✓ board updated</div>');
-        brainPulse('@board', true);
-        fetchItems();
-      }
-      if (data.money){
-        bub.insertAdjacentHTML('beforeend', '<div class="saved-chip">✓ finances updated</div>');
-        brainPulse('@money', true);
-        fetchMoney();
-      }
+      if (data.board){ brainPulse('@board', true); fetchItems(); }
+      if (data.money){ brainPulse('@money', true); fetchMoney(); }
       setConnBadge('', onlineLabel());
       speak(data.reply);
     }
@@ -2067,6 +1879,11 @@ async function send(text){
     busy = false;
     brainWorking(false);
     threadEl.scrollTop = threadEl.scrollHeight;
+    /* anything he said while Nathan was replying goes out now */
+    if (queuedSpeech && cfg.mode === 'free'){
+      const q = queuedSpeech; queuedSpeech = '';
+      setTimeout(() => send(q), 60);
+    }
   }
 }
 
@@ -2085,11 +1902,14 @@ document.getElementById('chips').addEventListener('click', e => {
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null, micOn = false, heard = '', micCancelled = false;
 
+let freeTimer = null;
 function buildRecogniser(){
   if (!SR) return null;
   const r = new SR();
   r.lang = cfg.lang || 'en-CA';
-  r.continuous = false;
+  /* free hand keeps the session open across pauses — thinking time is
+     allowed, and the phrase only "completes" after a real silence */
+  r.continuous = cfg.mode === 'free';
   r.interimResults = true;
   r.maxAlternatives = 1;
 
@@ -2106,6 +1926,20 @@ function buildRecogniser(){
     if (shown) setState('listening', shown);
     inputEl.value = shown;
     sendBtn.classList.toggle('ready', shown.length > 0);
+    if (cfg.mode === 'free'){
+      /* he's talking over Nathan — Nathan yields immediately */
+      if (shown.length >= 10) stopSpeaking();
+      /* the phrase is complete only after ~2s of silence, never mid-thought */
+      clearTimeout(freeTimer);
+      if (heard.trim()){
+        freeTimer = setTimeout(() => {
+          const phrase = heard.trim();
+          heard = ''; inputEl.value = '';
+          sendBtn.classList.remove('ready');
+          if (phrase) trySend(phrase);
+        }, 2200);
+      }
+    }
   };
 
   r.onerror = e => {
@@ -2129,11 +1963,20 @@ function buildRecogniser(){
 
   r.onend = () => {
     micOn = false; micBtn.classList.remove('on');
+    clearTimeout(freeTimer);
+    const said = heard.trim();
+    if (cfg.mode === 'free' && !micCancelled){
+      /* browser closed the session (timeout etc.) — finish the phrase if
+         there is one, and keep the ears open either way */
+      setState('ready');
+      if (said){ heard = ''; inputEl.value = ''; trySend(said); }
+      freehandResume();
+      return;
+    }
     /* only auto-send what was actually dictated this session — never a typed
        draft sitting in the input, and never after the mic was clicked to cancel */
-    const said = heard.trim();
-    if (said && (cfg.auto || cfg.mode === 'free') && !micCancelled){ setState('ready'); send(said); }
-    else if (!said){ setState('ready'); if (!micCancelled) freehandResume(); }
+    if (said && cfg.auto && !micCancelled){ setState('ready'); send(said); }
+    else if (!said){ setState('ready'); }
     else setState('ready', said);
   };
 
@@ -2197,6 +2040,13 @@ function freehandResume(){
   setTimeout(() => {
     if (cfg.mode === 'free' && !micOn && !busy && SR) micBtn.click();
   }, 400);
+}
+
+/* a phrase completed while Nathan was mid-reply queues up instead of vanishing */
+let queuedSpeech = '';
+function trySend(phrase){
+  if (busy){ queuedSpeech = queuedSpeech ? queuedSpeech + ' ' + phrase : phrase; return; }
+  send(phrase);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2266,6 +2116,8 @@ async function speakEleven(text){
   nathanAudio.src = url;
   nathanAudio.onended = () => { URL.revokeObjectURL(url); freehandResume(); };
   await nathanAudio.play();
+  /* free hand listens THROUGH Nathan's voice — talk over him any time */
+  if (cfg.mode === 'free') freehandResume();
 }
 function speakLocal(text){
   if (!('speechSynthesis' in window)){ freehandResume(); return; }
@@ -2278,6 +2130,7 @@ function speakLocal(text){
   u.pitch = cfg.pitch || 1.0;
   u.onend = freehandResume;
   u.onerror = freehandResume;
+  u.onstart = () => { if (cfg.mode === 'free') freehandResume(); };
   speechSynthesis.speak(u);
 }
 function speak(text){
@@ -3232,7 +3085,7 @@ bootBadge();
 setState('ready');
 renderPanels();                              // instant paint: live empties or demo samples
 renderFinCard();
-if (cfg.key){ loadMemory(true); fetchItems(); fetchMoney(); }
+if (cfg.key){ loadMemory(true); fetchItems(); fetchMoney(); preloadHistory(); }
 if (!connected()) transEl.textContent = 'Running on sample replies — open settings to pick a brain.';
 </script>
 </body>
