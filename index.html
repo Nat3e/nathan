@@ -304,12 +304,12 @@ main{
    and older messages dissolve as they scroll up */
 .thread{
   position:absolute;left:50%;transform:translateX(-50%);bottom:94px;
-  width:min(760px,calc(100% - 40px));height:min(48%,420px);
+  width:min(760px,calc(100% - 40px));height:auto;max-height:min(42%,330px);
   overflow-y:auto;padding:26px 4px 10px;
-  display:flex;flex-direction:column;gap:14px;
+  display:flex;flex-direction:column;gap:12px;
   opacity:0;pointer-events:none;transition:.5s var(--ease);
-  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 14%);
-  mask-image:linear-gradient(180deg,transparent 0,#000 14%);
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 16%);
+  mask-image:linear-gradient(180deg,transparent 0,#000 16%);
 }
 .thread .spacer{flex:1 1 auto;min-height:0}
 .app.chatting .thread{opacity:1;pointer-events:auto}
@@ -1452,7 +1452,7 @@ async function lockKey(k){
       /* first unlock on this device (or a rotated key) — light everything up */
       bootBadge();
       itemsLive = true;
-      loadMemory(true); fetchItems(); fetchMoney(); preloadHistory();
+      loadMemory(true); fetchItems(); fetchMoney();
       if (transEl.textContent.indexOf('sample replies') !== -1){
         transEl.textContent = 'Connected — ask me anything.';
       }
@@ -1740,29 +1740,12 @@ function bubble(who, html){
   m.className = 'msg ' + who;
   m.innerHTML = '<div class="bub">' + html + '</div>';
   threadEl.appendChild(m);
+  /* small and elegant: only the recent exchange stays on screen. Nathan
+     still reads the whole history server-side — the pile just never renders. */
+  const old = threadEl.querySelectorAll('.msg');
+  for (let i = 0; i < old.length - 6; i++) old[i].remove();
   threadEl.scrollTop = threadEl.scrollHeight;
   return m;
-}
-
-/* the conversation continues where it left off: recent turns are waiting in
-   the thread when the chat opens — same history Nathan himself reads */
-let histLoaded = false;
-async function preloadHistory(){
-  if (histLoaded || !connected()) return;
-  histLoaded = true;
-  try {
-    const {turns} = await memoryCall({action: 'history', session: 'web', limit: 12});
-    if (!Array.isArray(turns) || !turns.length) return;
-    for (const t of turns){
-      bubble(t.role === 'assistant' ? 'nat' : 'me',
-        t.role === 'assistant' ? fmt(t.content) : escapeHtml(t.content));
-    }
-    const d = document.createElement('div');
-    d.className = 'hist-divider';
-    d.textContent = 'earlier · new messages below';
-    threadEl.appendChild(d);
-    threadEl.scrollTop = threadEl.scrollHeight;
-  } catch (e) { /* history is a nicety */ }
 }
 
 /* The last photo stays "in mind" for follow-up questions: history only keeps
@@ -3089,7 +3072,7 @@ bootBadge();
 setState('ready');
 renderPanels();                              // instant paint: live empties or demo samples
 renderFinCard();
-if (cfg.key){ loadMemory(true); fetchItems(); fetchMoney(); preloadHistory(); }
+if (cfg.key){ loadMemory(true); fetchItems(); fetchMoney(); }
 if (!connected()) transEl.textContent = 'Running on sample replies — open settings to pick a brain.';
 </script>
 </body>
