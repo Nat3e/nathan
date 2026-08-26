@@ -14,6 +14,9 @@
 //  POST { action: "probe" }              → { ok, greeting }   (no mail secrets needed)
 //  POST { action: "inbox", limit? }      → { messages: [{uid, seen, from, subject, date, snippet}] }
 //  POST { action: "read", uid }          → { message: {..., body} }
+//  POST { action: "contacts", query? }   → { contacts: [{name, phones, emails, birthday?, org?}], total }
+//    His iCloud contacts, read-only via CardDAV — the same app-specific
+//    password that unlocks mail unlocks these. Nothing is ever written.
 //  POST { action: "bank_sync" }          → { ok, scanned, fresh, logged, balance? }
 //    Scans recent mail for bank alert emails (EN/FR, any Canadian bank),
 //    extracts transactions with Haiku, logs them to the money tracker
@@ -24,6 +27,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORS, json, safeEqual } from "../_shared/http.ts";
 import { listInbox, mailCreds, probeImap, readMail } from "../_shared/imap.ts";
+import { findContacts, listContacts } from "../_shared/carddav.ts";
 
 /* does this email smell like a bank alert? sender or subject, English or French */
 const BANK_FROM = /(desjardins|rbc|royalbank|banquenationale|bnc\b|nbc\b|scotiabank|scotia|bmo|\btd\b|tdcanadatrust|cibc|tangerine|interac|wealthsimple|koho|neo-?financial|eqbank|laurentienne|laurentian)/i;
@@ -39,7 +43,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "unauthorized", detail: "Wrong or missing access key." }, 401);
   }
 
-  let body: { action?: string; limit?: number; uid?: number };
+  let body: { action?: string; limit?: number; uid?: number; query?: string };
   try {
     body = await req.json();
   } catch {
@@ -61,6 +65,15 @@ Deno.serve(async (req: Request) => {
     }
 
     switch (body.action) {
+      case "contacts": {
+        const all = await listContacts(user, pass);
+        const hits = body.query ? findContacts(all, body.query) : all;
+        return json({
+          contacts: hits.slice(0, Math.min(Math.max(body.limit ?? 50, 1), 200)),
+          total: hits.length,
+        });
+      }
+
       case "bank_sync": {
         const db = createClient(
           Deno.env.get("SUPABASE_URL")!,

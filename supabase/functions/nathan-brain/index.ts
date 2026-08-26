@@ -30,6 +30,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORS, json, safeEqual } from "../_shared/http.ts";
 import { listInbox, mailCreds, readMail } from "../_shared/imap.ts";
+import { findContacts, listContacts } from "../_shared/carddav.ts";
 
 const SYSTEM_PREAMBLE = `You are Nathan, Nataniel's personal AI assistant.
 
@@ -90,7 +91,11 @@ documents, whiteboards; describe only what matters to his question.
 His iCloud inbox is connected, strictly read-only. check_email lists recent mail,
 read_email opens one. You cannot send, delete, or mark anything — when a reply is
 needed, write a draft in your message for him to copy. Surface only what genuinely
-needs him; ignore the noise.`;
+needs him; ignore the noise.
+
+His iCloud contacts are connected too, read-only, via the contacts tool — use it
+for phone numbers, emails, birthdays and companies when he asks about someone or
+needs to reach them. You can only read contacts, never change them.`;
 
 const TOOLS = [
   {
@@ -219,6 +224,19 @@ const TOOLS = [
       type: "object",
       properties: {
         limit: { type: "integer", description: "How many recent messages, default 10, max 25" },
+      },
+    },
+  },
+  {
+    name: "contacts",
+    description:
+      "Look up Nataniel's iCloud contacts (read-only): names, phone numbers, emails, " +
+      "birthdays, organizations. Pass query to search by name, company or email " +
+      "(accents ignored); omit it for the full list.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Name, company or email fragment" },
       },
     },
   },
@@ -709,6 +727,37 @@ Deno.serve(async (req: Request) => {
                 type: "tool_result", tool_use_id: tu.id, is_error: true,
                 content: `Could not update: ${e}`,
               });
+            }
+          } else if (tu.name === "contacts") {
+            const i = tu.input ?? {};
+            const { user: mailUser, pass: mailPass } = mailCreds();
+            if (!mailUser || !mailPass) {
+              results.push({
+                type: "tool_result", tool_use_id: tu.id, is_error: true,
+                content: "iCloud isn't connected — the mail secrets also unlock contacts.",
+              });
+            } else {
+              try {
+                const all = await listContacts(mailUser, mailPass);
+                const hits = i.query ? findContacts(all, String(i.query)) : all;
+                const lines = hits.slice(0, 30).map((c) =>
+                  c.name +
+                  (c.phones.length ? " — " + c.phones.join(", ") : "") +
+                  (c.emails.length ? " — " + c.emails.join(", ") : "") +
+                  (c.birthday ? " — bday " + c.birthday : "") +
+                  (c.org ? " (" + c.org + ")" : ""));
+                results.push({
+                  type: "tool_result", tool_use_id: tu.id,
+                  content: hits.length
+                    ? hits.length + " contact(s):\n" + lines.join("\n") + (hits.length > 30 ? "\n(+" + (hits.length - 30) + " more)" : "")
+                    : "No matching contacts.",
+                });
+              } catch (e) {
+                results.push({
+                  type: "tool_result", tool_use_id: tu.id, is_error: true,
+                  content: `Contacts error: ${String(e).slice(0, 300)}`,
+                });
+              }
             }
           } else if (tu.name === "check_email" || tu.name === "read_email") {
             const i = tu.input ?? {};
