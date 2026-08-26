@@ -280,30 +280,31 @@ main{
 .bdot.hot i{opacity:1;transform:scale(1.9);box-shadow:0 0 20px rgba(60,224,240,1)}
 @keyframes bfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 
+/* the head lives in the top-right corner now — the stage belongs to the Brain */
 .orbwrap{
-  position:relative;flex:1;min-height:0;width:100%;z-index:2;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  position:absolute;top:16px;right:24px;z-index:2;
+  display:flex;flex-direction:column;align-items:center;gap:0;
   transition:.75s var(--ease);pointer-events:none;
 }
 .orbwrap .caption,.orbwrap canvas{pointer-events:auto}
 .orbstack{position:relative;display:grid;place-items:center;transition:.75s var(--ease)}
-#orb{display:block;width:400px;height:400px;transition:.75s var(--ease)}
+#orb{display:block;width:250px;height:250px;transition:.75s var(--ease)}
 .bloom{
-  position:absolute;width:400px;height:400px;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle,rgba(60,224,240,.17) 0%,rgba(167,139,250,.09) 38%,transparent 66%);
-  filter:blur(34px);animation:bloom 7s var(--ease) infinite;transition:.75s var(--ease);
+  position:absolute;width:250px;height:250px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(60,224,240,.14) 0%,rgba(167,139,250,.08) 38%,transparent 66%);
+  filter:blur(30px);animation:bloom 7s var(--ease) infinite;transition:.75s var(--ease);
 }
 @keyframes bloom{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.13);opacity:1}}
 
 .caption{
-  margin-top:26px;text-align:center;transition:.5s var(--ease);
+  margin-top:4px;text-align:center;transition:.5s var(--ease);max-width:270px;
 }
 .transcript{
-  font-size:14px;color:var(--txt-3);letter-spacing:.01em;min-height:20px;
+  font-size:12px;color:var(--txt-3);letter-spacing:.01em;min-height:18px;
   transition:.4s;
 }
 .state{
-  margin-top:12px;font-size:30px;font-weight:300;letter-spacing:-.015em;
+  margin-top:6px;font-size:20px;font-weight:300;letter-spacing:-.01em;
   background:linear-gradient(96deg,#fff,#cfe9f5 40%,var(--cy) 72%,var(--vi));
   -webkit-background-clip:text;background-clip:text;color:transparent;
 }
@@ -918,6 +919,14 @@ input[type=range].slider::-moz-range-thumb{
   .hab-hero{padding:15px 16px;gap:14px}
   .hab-card{padding:13px 14px}
   .hab-week{gap:6px}
+
+  /* the head in the corner, phone-sized; the stage stays the Brain's */
+  .app:not(.chatting) .orbwrap{top:8px;right:10px;padding-bottom:0}
+  #orb,.bloom{width:130px;height:130px}
+  .caption{margin-top:0;max-width:150px}
+  .transcript{font-size:10px;min-height:14px}
+  .state{font-size:14px;margin-top:2px}
+  .app.chatting #orb,.app.chatting .bloom{width:50px;height:50px}
 }
 </style>
 </head>
@@ -1397,18 +1406,18 @@ function drawOrb(t){
 
   /* ── 1. atmospheric halo, outside the shell ── */
   const halo = ctx.createRadialGradient(CX, CY, R * 0.72, CX, CY, R * 1.5);
-  halo.addColorStop(0,   'rgba(60,224,240,' + (0.10 + amp * 0.13) + ')');
-  halo.addColorStop(0.45,'rgba(120,140,255,' + (0.05 + amp * 0.07) + ')');
+  halo.addColorStop(0,   'rgba(60,224,240,' + (0.07 + amp * 0.11) + ')');
+  halo.addColorStop(0.45,'rgba(120,140,255,' + (0.04 + amp * 0.06) + ')');
   halo.addColorStop(1,   'rgba(167,139,250,0)');
   ctx.fillStyle = halo;
   ctx.beginPath(); ctx.arc(CX, CY, R * 1.5, 0, TAU); ctx.fill();
 
-  /* ── 2. sphere body: deep, lit from below-left ── */
+  /* ── 2. sphere body: barely-there hologram, not a solid ball ── */
   const body = ctx.createRadialGradient(CX - R * .22, CY + R * .3, R * .06, CX, CY, R);
-  body.addColorStop(0,   'rgba(38,120,168,' + (0.30 + amp * 0.22) + ')');
-  body.addColorStop(0.42,'rgba(22,50,102,'  + (0.30 + amp * 0.12) + ')');
-  body.addColorStop(0.82,'rgba(10,14,42,0.42)');
-  body.addColorStop(1,   'rgba(6,8,24,0.14)');
+  body.addColorStop(0,   'rgba(38,120,168,' + (0.14 + amp * 0.16) + ')');
+  body.addColorStop(0.42,'rgba(22,50,102,'  + (0.13 + amp * 0.09) + ')');
+  body.addColorStop(0.82,'rgba(10,14,42,0.20)');
+  body.addColorStop(1,   'rgba(6,8,24,0.06)');
   ctx.fillStyle = body;
   ctx.beginPath(); ctx.arc(CX, CY, R, 0, TAU); ctx.fill();
 
@@ -1479,21 +1488,21 @@ function drawOrb(t){
   }
   ctx.restore();
 
-  /* ── 6. glass rim: bright where the light hits, fading away ── */
+  /* ── 6. glass rim: a clean hairline, bright only where the light hits ── */
   const rimR = R * (1 + amp * 0.014);
   const rim = ctx.createLinearGradient(CX - R, CY + R, CX + R, CY - R);
-  rim.addColorStop(0,   'rgba(90,240,255,' + (0.85 + amp * 0.15) + ')');
-  rim.addColorStop(0.4, 'rgba(120,190,255,' + (0.34 + amp * 0.3) + ')');
-  rim.addColorStop(0.75,'rgba(167,139,250,' + (0.55 + amp * 0.35) + ')');
-  rim.addColorStop(1,   'rgba(244,114,182,' + (0.30 + amp * 0.3) + ')');
+  rim.addColorStop(0,   'rgba(90,240,255,' + (0.55 + amp * 0.2) + ')');
+  rim.addColorStop(0.4, 'rgba(120,190,255,' + (0.20 + amp * 0.22) + ')');
+  rim.addColorStop(0.75,'rgba(167,139,250,' + (0.34 + amp * 0.3) + ')');
+  rim.addColorStop(1,   'rgba(244,114,182,' + (0.18 + amp * 0.22) + ')');
   ctx.strokeStyle = rim;
-  ctx.lineWidth = small ? 1 : 1.6;
+  ctx.lineWidth = small ? 0.8 : 1.1;
   ctx.beginPath(); ctx.arc(CX, CY, rimR, 0, TAU); ctx.stroke();
 
   /* inner rim falloff, gives it thickness */
   const inner = ctx.createRadialGradient(CX, CY, R * 0.86, CX, CY, R);
   inner.addColorStop(0, 'rgba(60,224,240,0)');
-  inner.addColorStop(1, 'rgba(90,220,255,' + (0.16 + amp * 0.18) + ')');
+  inner.addColorStop(1, 'rgba(90,220,255,' + (0.09 + amp * 0.14) + ')');
   ctx.fillStyle = inner;
   ctx.beginPath(); ctx.arc(CX, CY, R, 0, TAU); ctx.fill();
 
@@ -1826,18 +1835,34 @@ function brainBuild(){
 function brainLayout(){
   if (!brainEl) return;
   const w = brainEl.clientWidth, h = brainEl.clientHeight;
+  /* constellation sits slightly left-of-center — the head owns the top right */
   for (const n of brainNodes){
-    n.x = w / 2 + Math.cos(n.a) * w * 0.40 * n.s;
-    n.y = h / 2 + Math.sin(n.a) * h * 0.35 * n.s;
+    n.x = w * 0.46 + Math.cos(n.a) * w * 0.38 * n.s;
+    n.y = h * 0.54 + Math.sin(n.a) * h * 0.33 * n.s;
     n.el.style.left = n.x + 'px';
     n.el.style.top = n.y + 'px';
   }
+  brainCoreSync();
   const dpr = Math.min(devicePixelRatio || 1, 2);
   brainCv.width = Math.max(1, w * dpr);
   brainCv.height = Math.max(1, h * dpr);
   brainCv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 addEventListener('resize', () => { if (brainNodes.length) brainLayout(); });
+
+/* the threads all lead to the head — wherever it currently sits */
+let brainCore = {x: 0, y: 0};
+function brainCoreSync(){
+  try {
+    const o = document.getElementById('orb').getBoundingClientRect();
+    const b = brainEl.getBoundingClientRect();
+    if (o.width && b.width){
+      brainCore.x = o.left + o.width / 2 - b.left;
+      brainCore.y = o.top + o.height / 2 - b.top;
+    }
+  } catch (e) {}
+}
+setInterval(brainCoreSync, 600);
 
 /* a spark of data travels core ↔ dot; strong = a real write, not ambience */
 function brainPulse(key, strong){
@@ -1853,7 +1878,7 @@ function brainWorking(on){ brainBusy = on; }
   requestAnimationFrame(brainLoop);
   if (!brainEl || !brainCv || !brainNodes.length) return;
   const w = brainEl.clientWidth, h = brainEl.clientHeight;
-  const cx = w / 2, cy = h / 2;
+  const cx = brainCore.x || w / 2, cy = brainCore.y || h / 2;
   const ctx = brainCv.getContext('2d');
   ctx.clearRect(0, 0, w, h);
   const t = performance.now() / 1000;
@@ -2472,7 +2497,11 @@ function renderPanels(){
         n: i.title, d: i.detail || '', w: relAge(i.created_at), c: pairFor(i.title)[0]}))
     : WAITING;
   const upcoming = itemsLive
-    ? plans().filter(i => new Date(i.when_at) >= t0).slice(0, 5).map(i => ({
+    /* an event leaves "Coming Up" the moment it ends (5-min grace);
+       dated tasks stay until done — overdue is still to-do */
+    ? plans().filter(i => i.kind === 'event'
+        ? new Date(i.end_at || i.when_at).getTime() >= Date.now() - 300000
+        : new Date(i.when_at) >= t0).slice(0, 5).map(i => ({
         key: 'i' + i.id,
         n: i.title, d: dayLabel(i.when_at),
         w: timeLabel(i.when_at) + (i.end_at ? '–' + timeLabel(i.end_at) : ''),
