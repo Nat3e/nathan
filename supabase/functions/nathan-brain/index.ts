@@ -31,6 +31,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORS, json, safeEqual } from "../_shared/http.ts";
 import { listInbox, mailCreds, readMail } from "../_shared/imap.ts";
 import { findContacts, listContacts } from "../_shared/carddav.ts";
+import { addCalendarEvent } from "../_shared/caldav.ts";
 
 const SYSTEM_PREAMBLE = `You are Nathan, Nataniel's personal AI assistant.
 
@@ -103,7 +104,12 @@ needs him; ignore the noise.
 
 His iCloud contacts are connected too, read-only, via the contacts tool — use it
 for phone numbers, emails, birthdays and companies when he asks about someone or
-needs to reach them. You can only read contacts, never change them.`;
+needs to reach them. You can only read contacts, never change them.
+
+His REAL iPhone calendar (iCloud) is separate from the app board. When he explicitly
+asks to put something in his real/phone calendar, use calendar_add — it can only
+CREATE events, never change or delete existing ones. Do not mirror board items there
+on your own; his request is the confirmation.`;
 
 const TOOLS = [
   {
@@ -246,6 +252,23 @@ const TOOLS = [
       properties: {
         query: { type: "string", description: "Name, company or email fragment" },
       },
+    },
+  },
+  {
+    name: "calendar_add",
+    description:
+      "Create an event in Nataniel's REAL iPhone/iCloud calendar (not the app board). " +
+      "CREATE-ONLY: existing events can never be modified or deleted. Use ONLY when he " +
+      "explicitly asks to put something in his real/phone calendar.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        start: { type: "string", description: "ISO 8601 with offset (America/Toronto)" },
+        end: { type: "string", description: "ISO 8601 with offset; defaults to start + 1h" },
+        notes: { type: "string" },
+      },
+      required: ["title", "start"],
     },
   },
   {
@@ -775,6 +798,19 @@ Deno.serve(async (req: Request) => {
                   type: "tool_result", tool_use_id: tu.id, is_error: true,
                   content: `Contacts error: ${String(e).slice(0, 300)}`,
                 });
+              }
+            }
+          } else if (tu.name === "calendar_add") {
+            const i = tu.input ?? {};
+            const { user: mailUser, pass: mailPass } = mailCreds();
+            if (!mailUser || !mailPass) {
+              results.push({ type: "tool_result", tool_use_id: tu.id, is_error: true, content: "iCloud isn't connected." });
+            } else {
+              try {
+                const placed = await addCalendarEvent(mailUser, mailPass, { title: i.title, start: i.start, end: i.end, notes: i.notes });
+                results.push({ type: "tool_result", tool_use_id: tu.id, content: `Created in his "${placed.calendar}" calendar.` });
+              } catch (e) {
+                results.push({ type: "tool_result", tool_use_id: tu.id, is_error: true, content: `Calendar error: ${String(e).slice(0, 300)}` });
               }
             }
           } else if (tu.name === "check_email" || tu.name === "read_email") {

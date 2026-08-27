@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.nathan-voice]
 verify_jwt = false
+
+[functions.nathan-gardener]
+verify_jwt = false
