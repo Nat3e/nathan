@@ -324,7 +324,7 @@ main{
 }
 .msg{max-width:76%;display:flex;gap:11px;animation:rise .45s var(--ease) both}
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-.msg.me{align-self:flex-end;flex-direction:row-reverse}
+.msg.me{display:none}   /* his own messages are never shown back to him */
 .mav{
   flex:0 0 auto;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;
   font-size:10px;font-weight:600;letter-spacing:.06em;
@@ -1742,10 +1742,6 @@ function bubble(who, html){
   m.className = 'msg ' + who;
   m.innerHTML = '<div class="bub">' + html + '</div>';
   threadEl.appendChild(m);
-  /* small and elegant: only the recent exchange stays on screen. Nathan
-     still reads the whole history server-side — the pile just never renders. */
-  const old = threadEl.querySelectorAll('.msg');
-  for (let i = 0; i < old.length - 6; i++) old[i].remove();
   threadEl.scrollTop = threadEl.scrollHeight;
   return m;
 }
@@ -1807,8 +1803,10 @@ async function send(text){
   const img = pendingImg;
   if (!text && !img) return;
 
+  /* his own words never echo back, and a new message wipes the last one —
+     the strip holds exactly one thing: what Nathan is saying right now */
   app.classList.add('chatting');
-  bubble('me', (img ? '<img class="snap" src="' + img.url + '">' : '') + escapeHtml(text));
+  threadEl.querySelectorAll('.msg, .hist-divider').forEach(el => el.remove());
   inputEl.value = '';
   setPending(null);
   sendBtn.classList.remove('ready');
