@@ -1768,11 +1768,12 @@ let lastImg = null;                                 // {media_type, data, at}
 
 /* The brain streams NDJSON — tokens render the moment Claude produces them.
    Falls back to a single JSON blob if an older deployment answers. */
-async function askBrain(text, onToken, img){
+async function askBrain(text, onToken, img, signal){
   if (img) lastImg = {media_type: img.media_type, data: img.data, at: Date.now()};
   const ctx = !img && lastImg && Date.now() - lastImg.at < 900000 ? lastImg : null;
   const res = await fetch(cfg.endpoint, {
     method: 'POST',
+    signal,
     headers: {'content-type':'application/json', 'x-nathan-key': cfg.key},
     body: JSON.stringify({
       message: text, session: 'web', speed: cfg.speed, mode: cfg.mode || 'normal',
@@ -1812,11 +1813,20 @@ async function askBrain(text, onToken, img){
   return out || {reply: shown.trim(), saved: [], board: 0};
 }
 
+/* a new message always wins: it aborts whatever Nathan was still writing or
+   saying, and only the newest generation is allowed to touch the screen */
+let genId = 0, inflight = null;
+
 async function send(text){
-  if (busy) return;
   text = (text || inputEl.value).trim();
   const img = pendingImg;
   if (!text && !img) return;
+
+  /* cut him off — stop the stream, stop the voice, drop the old reply */
+  const myGen = ++genId;
+  try { inflight && inflight.abort(); } catch (e) {}
+  inflight = ('AbortController' in window) ? new AbortController() : null;
+  stopSpeaking();
 
   /* his own words never echo back, and a new message wipes the last one —
      the strip holds exactly one thing: what Nathan is saying right now */
@@ -1836,6 +1846,7 @@ async function send(text){
     if (!connected()){
       /* demo mode — no key configured yet */
       await new Promise(r => setTimeout(r, 900 + Math.random() * 600));
+      if (myGen !== genId) return;
       const reply = REPLIES[replyIdx++ % REPLIES.length];
       bub.innerHTML = fmt(reply) +
         '<div class="saved-chip" style="color:var(--warn);border-color:rgba(251,191,36,.28);background:rgba(251,191,36,.07)">demo reply — add your key in settings</div>';
@@ -1850,12 +1861,14 @@ async function send(text){
       }, 5000);
 
       const onToken = partial => {
+        if (myGen !== genId) return;               // superseded: stay silent
         if (first){ first = false; clearTimeout(slow); setState('speaking'); }
         bub.innerHTML = fmt(partial);
         threadEl.scrollTop = threadEl.scrollHeight;
       };
-      const data = await askBrain(text, onToken, img);
+      const data = await askBrain(text, onToken, img, inflight && inflight.signal);
       clearTimeout(slow);
+      if (myGen !== genId) return;                 // he already asked something else
       bub.innerHTML = fmt(data.reply || '(no reply)');
       /* writes announce themselves only in the Brain graph — no chips, no chatter */
       if (data.saved && data.saved.length){
@@ -1870,6 +1883,8 @@ async function send(text){
     setState('speaking');
     setTimeout(() => setState('ready'), 2000);
   } catch (err){
+    /* an interrupted request isn't a failure — the newer message owns the screen */
+    if (myGen !== genId || err.name === 'AbortError') return;
     bub.classList.add('err');
     let hint = '';
     if (err.kind === 'setup')             hint = ' Open settings for the setup checklist.';
@@ -1878,13 +1893,15 @@ async function send(text){
     setConnBadge('err', 'Brain offline');
     setState('ready');
   } finally {
-    busy = false;
-    brainWorking(false);
-    threadEl.scrollTop = threadEl.scrollHeight;
-    /* anything he said while Nathan was replying goes out now */
-    if (queuedSpeech && cfg.mode === 'free'){
-      const q = queuedSpeech; queuedSpeech = '';
-      setTimeout(() => send(q), 60);
+    if (myGen === genId){
+      busy = false;
+      brainWorking(false);
+      threadEl.scrollTop = threadEl.scrollHeight;
+      /* anything he said while Nathan was replying goes out now */
+      if (queuedSpeech && cfg.mode === 'free'){
+        const q = queuedSpeech; queuedSpeech = '';
+        setTimeout(() => send(q), 60);
+      }
     }
   }
 }
@@ -2044,12 +2061,9 @@ function freehandResume(){
   }, 400);
 }
 
-/* a phrase completed while Nathan was mid-reply queues up instead of vanishing */
+/* a finished phrase goes out immediately — even mid-reply, it interrupts him */
 let queuedSpeech = '';
-function trySend(phrase){
-  if (busy){ queuedSpeech = queuedSpeech ? queuedSpeech + ' ' + phrase : phrase; return; }
-  send(phrase);
-}
+function trySend(phrase){ send(phrase); }
 
 /* ══════════════════════════════════════════════════════════════
    VOICE OUT
