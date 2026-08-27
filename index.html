@@ -2070,10 +2070,21 @@ function trySend(phrase){ send(phrase); }
 /* Rank voices by how natural they sound. Edge's "Online (Natural)" neural
    voices are near-studio; then other neural/premium; then Google's network
    voices; plain robotic system voices last. */
+/* iOS/macOS ship a pile of novelty voices (Bells, Zarvox, Bad News…) that sound
+   awful; they must never win by default. These lists sort the phone out. */
+const VOICE_JUNK = /(albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|jester|junior|kathy|organ|superstar|trinoids|whisper|wobble|zarvox|fred|ralph|princess|hysterical|grandma|grandpa|rocko|shelley|sandy|flo|eddy|reed)/i;
+/* the genuinely good built-in voices on Apple and Android devices */
+const VOICE_GOOD = /(samantha|siri|ava|allison|susan|nicky|tom|alex|karen|daniel|moira|serena|zoe|evan|nathan|aaron|arthur|martha|amelie|amélie|thomas|audrey|chantal)/i;
+
 function voiceScore(v){
-  if (/Online.*Natural|\(Natural\)/i.test(v.name)) return 4;
-  if (/Natural|Neural|Premium|Enhanced/i.test(v.name)) return 3;
-  if (/Google/i.test(v.name)) return 2;
+  const n = v.name || '';
+  if (VOICE_JUNK.test(n)) return 0;                              // never, unless nothing else exists
+  if (/Online.*Natural|\(Natural\)/i.test(n)) return 6;          // Edge/Windows neural — the best
+  if (/Neural|Premium|Enhanced/i.test(n)) return 5;              // iOS "Enhanced"/"Premium" downloads
+  if (/Natural/i.test(n)) return 5;
+  if (VOICE_GOOD.test(n)) return 4;                              // solid stock Apple/Android voices
+  if (/Google/i.test(n)) return 3;                               // Android network voices
+  if (v.localService === false) return 2;                        // any other cloud voice beats offline
   return 1;
 }
 /* all voices, best first: language matches on top, then by quality */
@@ -2082,7 +2093,14 @@ function voiceList(){
   return speechSynthesis.getVoices().slice().sort((a, b) => {
     const am = a.lang.toLowerCase().startsWith(want), bm = b.lang.toLowerCase().startsWith(want);
     if (am !== bm) return am ? -1 : 1;
-    return voiceScore(b) - voiceScore(a);
+    const d = voiceScore(b) - voiceScore(a);
+    if (d) return d;
+    /* same tier: prefer the exact region (en-CA over en-IN), then name order */
+    const full = (cfg.lang || 'en-CA').toLowerCase().replace('_', '-');
+    const ar = a.lang.toLowerCase().replace('_', '-') === full;
+    const br = b.lang.toLowerCase().replace('_', '-') === full;
+    if (ar !== br) return ar ? -1 : 1;
+    return (a.name || '').localeCompare(b.name || '');
   });
 }
 function pickVoice(){
@@ -2134,8 +2152,14 @@ async function speakEleven(text){
   /* free hand listens THROUGH Nathan's voice — talk over him any time */
   if (cfg.mode === 'free') freehandResume();
 }
-function speakLocal(text){
+function speakLocal(text, retried){
   if (!('speechSynthesis' in window)){ freehandResume(); return; }
+  /* phones report an empty voice list on the first call — speaking then hands
+     Nathan whatever the system default is. Wait one beat for the real list. */
+  if (!retried && !speechSynthesis.getVoices().length){
+    setTimeout(() => speakLocal(text, true), 250);
+    return;
+  }
   stopSpeaking();
   const u = new SpeechSynthesisUtterance(text);
   const v = pickVoice();
@@ -2155,6 +2179,7 @@ function speak(text){
   else speakLocal(clean);
 }
 if ('speechSynthesis' in window){
+  try { speechSynthesis.getVoices(); } catch (e) {}        // nudge phones to load the list early
   speechSynthesis.onvoiceschanged = () => {
     if (modal.classList.contains('open')) paintVoices();   // list often arrives late
   };
