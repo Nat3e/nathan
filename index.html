@@ -337,6 +337,14 @@ main{
   backdrop-filter:blur(10px);
 }
 .msg.nat{max-width:82%;align-self:flex-start}
+/* Nathan's voice carries his colors: a gradient edge down the card */
+.msg.nat .bub{position:relative;padding-left:19px;border-color:rgba(60,224,240,.16)}
+.msg.nat .bub::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:2.5px;
+  border-radius:12px 0 0 12px;
+  background:linear-gradient(180deg,var(--cy),var(--vi) 55%,var(--pk));
+  box-shadow:0 0 12px rgba(60,224,240,.45);
+}
 .msg.me .bub{background:rgba(60,224,240,.07);border-color:rgba(60,224,240,.16)}
 .typing{display:flex;gap:4px;align-items:center;padding:4px 2px}
 .typing i{width:5px;height:5px;border-radius:50%;background:var(--txt-3);animation:blink 1.3s infinite}
