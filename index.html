@@ -1768,12 +1768,11 @@ let lastImg = null;                                 // {media_type, data, at}
 
 /* The brain streams NDJSON — tokens render the moment Claude produces them.
    Falls back to a single JSON blob if an older deployment answers. */
-async function askBrain(text, onToken, img, signal){
+async function askBrain(text, onToken, img){
   if (img) lastImg = {media_type: img.media_type, data: img.data, at: Date.now()};
   const ctx = !img && lastImg && Date.now() - lastImg.at < 900000 ? lastImg : null;
   const res = await fetch(cfg.endpoint, {
     method: 'POST',
-    signal,
     headers: {'content-type':'application/json', 'x-nathan-key': cfg.key},
     body: JSON.stringify({
       message: text, session: 'web', speed: cfg.speed, mode: cfg.mode || 'normal',
@@ -1813,19 +1812,19 @@ async function askBrain(text, onToken, img, signal){
   return out || {reply: shown.trim(), saved: [], board: 0};
 }
 
-/* a new message always wins: it aborts whatever Nathan was still writing or
-   saying, and only the newest generation is allowed to touch the screen */
-let genId = 0, inflight = null;
+/* A new message always wins the screen and the voice — but an interrupted
+   answer is never thrown away: it keeps running quietly to the end so the
+   server still records it and Nathan remembers what he was saying. Only the
+   newest generation may touch the screen. */
+let genId = 0;
 
 async function send(text){
   text = (text || inputEl.value).trim();
   const img = pendingImg;
   if (!text && !img) return;
 
-  /* cut him off — stop the stream, stop the voice, drop the old reply */
+  /* cut him off out loud; his half-finished thought completes in the background */
   const myGen = ++genId;
-  try { inflight && inflight.abort(); } catch (e) {}
-  inflight = ('AbortController' in window) ? new AbortController() : null;
   stopSpeaking();
 
   /* his own words never echo back, and a new message wipes the last one —
@@ -1866,7 +1865,7 @@ async function send(text){
         bub.innerHTML = fmt(partial);
         threadEl.scrollTop = threadEl.scrollHeight;
       };
-      const data = await askBrain(text, onToken, img, inflight && inflight.signal);
+      const data = await askBrain(text, onToken, img);
       clearTimeout(slow);
       if (myGen !== genId) return;                 // he already asked something else
       bub.innerHTML = fmt(data.reply || '(no reply)');
@@ -1883,8 +1882,8 @@ async function send(text){
     setState('speaking');
     setTimeout(() => setState('ready'), 2000);
   } catch (err){
-    /* an interrupted request isn't a failure — the newer message owns the screen */
-    if (myGen !== genId || err.name === 'AbortError') return;
+    /* a superseded request never reports failure — the newer message owns the screen */
+    if (myGen !== genId) return;
     bub.classList.add('err');
     let hint = '';
     if (err.kind === 'setup')             hint = ' Open settings for the setup checklist.';
