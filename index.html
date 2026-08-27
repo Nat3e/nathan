@@ -910,11 +910,18 @@ input[type=range].slider::-moz-range-thumb{
   .hab-card{padding:13px 14px}
   .hab-week{gap:6px}
 
-  /* status line + graph labels, phone-sized */
-  .caption{bottom:200px;width:calc(100% - 24px)}
-  .state{font-size:16px}
-  .transcript{font-size:11px;min-height:15px}
-  .bdot u{font-size:8px}
+  /* phone: no floating status line (dictation already shows in the input);
+     graph gets smaller dots and quieter labels */
+  .caption{display:none}
+  .bdot u{font-size:7.5px;opacity:.45}
+  .bdot i{width:calc(var(--d,12px) * .72);height:calc(var(--d,12px) * .72)}
+
+  /* composer: the input owns its whole first line; the circles flow under it */
+  .cbox{flex-wrap:wrap;border-radius:22px;padding:8px 12px;gap:6px;justify-content:center}
+  .cbox input{flex:1 0 100%;order:-1;padding:7px 4px}
+  .cbtn,.mbtn{width:36px;height:36px}
+  .mbtn{font-size:13px}
+  .thread{bottom:128px}
 }
 </style>
 </head>
